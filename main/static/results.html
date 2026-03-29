@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HiveMind — Results</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c6af7'/><text y='.9em' font-size='80' x='15' fill='white'>H</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font:    'JetBrains Mono', monospace;
+      --bg:      #080810;
+      --surface: #0f0f1a;
+      --surface-2: #161626;
+      --border:  #1e1e32;
+      --border-2: #2a2a42;
+      --accent:  #7c6af7;
+      --accent-dim: rgba(124,106,247,0.10);
+      --text:    #e8e6f0;
+      --text-2:  #7a7895;
+      --text-3:  #3d3c52;
+      --success: #4ade80;
+      --danger:  #f87171;
+    }
+
+    html, body { min-height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+    body { position: relative; animation: page-fade-in 300ms ease-out; }
+    @keyframes page-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+    /* ── Backgrounds ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(124,106,247,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,106,247,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 20%, black 100%);
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 20%, black 100%);
+      pointer-events: none; z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      opacity: 0.03; pointer-events: none; z-index: 9997;
+    }
+
+    /* ── Neural canvas ── */
+    #neural-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+    /* ── Custom cursor ── */
+    #cursor-dot {
+      position: fixed; width: 8px; height: 8px;
+      background: var(--accent); border-radius: 50%;
+      pointer-events: none; z-index: 99999;
+      transform: translate(-50%, -50%);
+      will-change: left, top;
+      box-shadow: 0 0 8px rgba(124,106,247,0.6);
+    }
+    @media (pointer: coarse) { #cursor-dot { display: none; } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 56px;
+      background: rgba(8,8,16,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav::after {
+      content: '';
+      position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124,106,247,0.5), transparent);
+    }
+    .nav-logo {
+      font-size: 15px; font-weight: 700;
+      letter-spacing: 0.06em; color: var(--accent);
+      text-decoration: none;
+    }
+    .nav-back {
+      font-size: 12px; color: var(--text-2);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 200ms ease-out;
+    }
+    .nav-back:hover { color: var(--text); }
+
+    /* ── Page wrapper ── */
+    .page {
+      position: relative; z-index: 1;
+      padding: 48px 24px 80px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    /* ── Hero card — perspective entrance ── */
+    @keyframes card-entrance {
+      from { opacity: 0; transform: perspective(800px) rotateX(2deg) scale(0.98) translateY(20px); }
+      to   { opacity: 1; transform: perspective(800px) rotateX(0deg) scale(1)    translateY(0); }
+    }
+    .hero-card {
+      width: 100%; max-width: 900px;
+      background: var(--surface);
+      border: 1px solid var(--border-2);
+      border-radius: 20px;
+      padding: 48px;
+      animation: card-entrance 600ms cubic-bezier(0.4,0,0.2,1) both;
+      box-shadow: 0 0 60px rgba(124,106,247,0.05), 0 24px 80px rgba(0,0,0,0.6);
+    }
+
+    /* ── Card header ── */
+    .card-top-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card-report-label {
+      font-size: 0.7rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .card-date { font-size: 0.8rem; color: var(--text-2); }
+    .card-title {
+      font-size: 2.2rem; font-weight: 700;
+      color: var(--text); margin-bottom: 8px; line-height: 1.2;
+    }
+    .card-subtext { font-size: 0.85rem; color: var(--text-2); }
+    .card-divider {
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent);
+      margin: 20px 0 24px;
+      box-shadow: 0 0 8px rgba(124,106,247,0.3);
+    }
+
+    /* ── Agent pills row ── */
+    .agent-pills-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+    .agent-pill {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 99px; padding: 5px 12px;
+      font-family: var(--font); font-size: 0.72rem;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .pill-name  { color: var(--text); }
+    .pill-model { color: var(--text-3); }
+
+    /* ── Section headers with grow bar ── */
+    .section-heading {
+      font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.12em; color: var(--text-3);
+      text-transform: uppercase; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-heading::before {
+      content: '';
+      display: block; height: 14px; width: 0;
+      background: var(--accent); border-radius: 2px;
+      transition: width 500ms cubic-bezier(0.4,0,0.2,1);
+      box-shadow: 0 0 6px rgba(124,106,247,0.5);
+    }
+    .section-heading.bar-visible::before { width: 3px; }
+
+    /* ── Pitch section ── */
+    .pitch-section {
+      background: linear-gradient(135deg, rgba(74,222,128,0.06) 0%, rgba(124,106,247,0.04) 100%);
+      border: 1px solid rgba(74,222,128,0.25);
+      border-radius: 16px;
+      padding: 36px 40px;
+      margin-bottom: 28px;
+      animation: card-entrance 600ms ease-out both;
+      box-shadow: 0 0 40px rgba(74,222,128,0.06), 0 0 80px rgba(74,222,128,0.02), inset 0 0 40px rgba(74,222,128,0.02);
+      position: relative;
+      overflow: hidden;
+    }
+    .pitch-section::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(74,222,128,0.6), rgba(124,106,247,0.4), transparent);
+    }
+    .pitch-section:hover { box-shadow: 0 0 60px rgba(74,222,128,0.09), 0 0 100px rgba(74,222,128,0.03); }
+    .pitch-label {
+      font-size: 0.65rem; font-weight: 700;
+      letter-spacing: 0.18em; color: var(--success);
+      text-transform: uppercase; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pitch-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(74,222,128,0.3), transparent);
+    }
+    /* Hero hook line */
+    .pitch-hook {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(74,222,128,0.12);
+      letter-spacing: -0.01em;
+    }
+    .pitch-hook-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: rgba(74,222,128,0.6);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 6px;
+    }
+    /* Pitch body grid */
+    .pitch-body-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .pitch-body-card {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .pitch-body-card-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: #7c6af7;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .pitch-body-card p {
+      color: #c9c7d4;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      margin: 0;
+    }
+    .pitch-win-row {
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: rgba(124,106,247,0.08);
+      border: 1px solid rgba(124,106,247,0.18);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #c9c7d4;
+      line-height: 1.7;
+    }
+    .pitch-win-row-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: block;
+    }
+    @media (max-width: 640px) {
+      .pitch-body-grid { grid-template-columns: 1fr; }
+    }
+    .pitch-content h1 { display: none; }
+    /* h2 — small purple label tag (HOOK, PROBLEM, SOLUTION, etc.) */
+    .pitch-content h2 {
+      display: block;
+      color: #7c6af7; font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.15em;
+      margin-top: 16px; margin-bottom: 4px;
+      border: none; padding: 0;
+    }
+    .pitch-content h3 { color: #e8e6f0; font-size: 0.88rem; font-weight: 700; margin: 12px 0 5px; }
+    .pitch-content strong { color: #e8e6f0; font-weight: 700; }
+    .pitch-content p { color: #a8a4bd; font-size: 0.85rem; line-height: 1.8; margin-bottom: 10px; }
+    .pitch-content ul { list-style: none; padding-left: 16px; margin-bottom: 10px; }
+    .pitch-content ul li {
+      color: #a8a4bd; font-size: 0.85rem; line-height: 1.8;
+      margin-bottom: 2px; position: relative; padding-left: 14px;
+    }
+    .pitch-content ul li::before { content: '▪'; color: #7c6af7; position: absolute; left: 0; }
+    .pitch-content ol { padding-left: 24px; margin-bottom: 10px; list-style: decimal; }
+    .pitch-content ol li { color: #a8a4bd; font-size: 0.85rem; line-height: 1.8; margin-bottom: 2px; }
+    .pitch-content ol li::marker { color: #7c6af7; font-weight: 700; }
+    .pitch-content code {
+      background: rgba(124,106,247,0.15); color: #7c6af7;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 0.8rem; font-family: var(--font);
+    }
+    .pitch-content hr {
+      border: none; margin: 20px 0;
+      position: relative; height: 1.2em;
+    }
+    .pitch-content hr::after {
+      content: '· · ·';
+      position: absolute; left: 50%; transform: translateX(-50%);
+      color: var(--text-3); letter-spacing: 0.5em; font-size: 0.75rem;
+    }
+
+    /* ── Critic section ── */
+    .mp-section {
+      background: rgba(248,113,113,0.03);
+      border: 1px solid rgba(248,113,113,0.12);
+      border-left: 3px solid var(--danger);
+      border-radius: 12px; padding: 20px 24px; margin-bottom: 28px;
+    }
+    .mp-section:hover { box-shadow: 0 0 20px rgba(248,113,113,0.04); }
+    .mp-label { color: var(--danger); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 4px; }
+    .mp-desc  { color: var(--text-2); font-size: 0.75rem; margin-bottom: 16px; }
+    .mp-content h1 { display: none; }
+    /* h2 — small red label tag (BIGGEST RISK, ALREADY EXISTS, etc.) */
+    .mp-content h2 {
+      display: block;
+      color: #ef4444; font-size: 0.65rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.15em;
+      margin-top: 16px; margin-bottom: 4px;
+      border: none; padding: 0;
+    }
+    .mp-content h3 { color: #e8e6f0; font-size: 0.88rem; font-weight: 700; margin: 12px 0 5px; }
+    .mp-content strong { color: #e8e6f0; font-weight: 700; }
+    .mp-content p { color: #a8a4bd; font-size: 0.85rem; line-height: 1.8; margin-bottom: 10px; }
+    .mp-content ul { list-style: none; padding-left: 16px; margin-bottom: 10px; }
+    .mp-content ul li {
+      color: #a8a4bd; font-size: 0.85rem; line-height: 1.8;
+      margin-bottom: 2px; position: relative; padding-left: 14px;
+    }
+    .mp-content ul li::before { content: '▪'; color: #ef4444; position: absolute; left: 0; }
+    .mp-content ol { padding-left: 24px; margin-bottom: 10px; list-style: decimal; }
+    .mp-content ol li { color: #a8a4bd; font-size: 0.85rem; line-height: 1.8; margin-bottom: 2px; }
+    .mp-content ol li::marker { color: #ef4444; font-weight: 700; }
+    .mp-content code {
+      background: rgba(248,113,113,0.12); color: #ef4444;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 0.8rem; font-family: var(--font);
+    }
+    .mp-content hr {
+      border: none; margin: 20px 0;
+      position: relative; height: 1.2em;
+    }
+    .mp-content hr::after {
+      content: '· · ·';
+      position: absolute; left: 50%; transform: translateX(-50%);
+      color: var(--text-3); letter-spacing: 0.5em; font-size: 0.75rem;
+    }
+
+    /* ── Agent sections ── */
+    .as-section {
+      border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; margin-bottom: 10px;
+      transition: box-shadow 200ms ease-out;
+    }
+    .as-section:hover { box-shadow: 0 0 16px rgba(124,106,247,0.04); }
+    .as-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; cursor: pointer; user-select: none;
+      background: var(--surface-2);
+      transition: background 150ms ease-out;
+    }
+    .as-header:hover { background: rgba(124,106,247,0.04); }
+    .as-header-left { display: flex; align-items: center; gap: 10px; }
+    .as-name { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+    .as-model-pill {
+      font-size: 0.68rem; color: var(--text-3);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 99px; padding: 2px 8px;
+    }
+    .as-chevron { width: 16px; height: 16px; color: var(--text-3); stroke-width: 2; transition: transform 250ms ease-out; flex-shrink: 0; }
+    .as-section.expanded .as-chevron { transform: rotate(90deg); }
+    .as-body { max-height: 0; overflow: hidden; transition: max-height 350ms cubic-bezier(0.4,0,0.2,1); }
+    .as-section.expanded .as-body { max-height: 4000px; }
+    .as-output { padding: 20px 24px; }
+    .as-output h1 { display: none; }
+
+    /* h2 — small-caps section label with thin rule */
+    .as-output h2 {
+      font-size: 0.7rem; font-weight: 700;
+      font-variant: small-caps; text-transform: uppercase;
+      letter-spacing: 0.12em; color: #7c6af7;
+      margin: 20px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* h3 — slightly larger than body */
+    .as-output h3 {
+      color: #e8e6f0; font-size: 0.85rem; font-weight: 700;
+      margin: 14px 0 6px;
+    }
+
+    /* bold */
+    .as-output strong { color: #e8e6f0; font-weight: 700; }
+
+    /* paragraphs */
+    .as-output p { color: #a8a4bd; font-size: 0.82rem; line-height: 1.8; margin-bottom: 10px; }
+
+    /* bullet lists — ▪ in purple */
+    .as-output ul { list-style: none; padding-left: 16px; margin-bottom: 10px; }
+    .as-output ul li {
+      color: #a8a4bd; font-size: 0.82rem;
+      line-height: 1.8; margin-bottom: 2px;
+      position: relative; padding-left: 14px;
+    }
+    .as-output ul li::before {
+      content: '▪'; color: #7c6af7;
+      position: absolute; left: 0; top: 0;
+    }
+
+    /* numbered lists — purple bold numbers */
+    .as-output ol { padding-left: 24px; margin-bottom: 10px; list-style: decimal; }
+    .as-output ol li {
+      color: #a8a4bd; font-size: 0.82rem;
+      line-height: 1.8; margin-bottom: 2px;
+    }
+    .as-output ol li::marker { color: #7c6af7; font-weight: 700; }
+
+    /* inline code */
+    .as-output code {
+      background: rgba(124,106,247,0.15); color: #7c6af7;
+      padding: 2px 6px; border-radius: 4px;
+      font-size: 0.75rem; font-family: var(--font);
+    }
+    .as-output pre { background: var(--surface); padding: 12px; border-radius: 8px; overflow-x: auto; border: 1px solid var(--border); margin-bottom: 10px; }
+    .as-output pre code { background: none; color: var(--text-2); padding: 0; border-radius: 0; }
+
+    /* hr — replaced with centered · · · */
+    .as-output hr {
+      border: none; margin: 20px 0;
+      position: relative; height: 1.2em;
+    }
+    .as-output hr::after {
+      content: '· · ·';
+      position: absolute; left: 50%; transform: translateX(-50%);
+      color: var(--text-3); letter-spacing: 0.5em; font-size: 0.75rem;
+    }
+
+    /* Per-agent accent colors — left border only, text is standardised above */
+    .agent-researcher { border-left: 3px solid #7c6af7; }
+    .agent-ideator    { border-left: 3px solid #a78bf8; }
+    .agent-engineer   { border-left: 3px solid #60a5fa; }
+    .agent-critic     { border-left: 3px solid #f87171; }
+    .agent-presenter  { border-left: 3px solid #4ade80; }
+
+    /* ── Card footer ── */
+    .card-footer {
+      border-top: 1px solid var(--border);
+      margin-top: 32px; padding-top: 20px;
+      display: flex; justify-content: space-between;
+      align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .footer-count  { color: var(--text-2); font-size: 0.75rem; }
+    .footer-actions { display: flex; gap: 8px; align-items: center; }
+    .footer-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 14px;
+      font-size: 0.75rem; color: var(--text-2);
+      cursor: pointer; font-family: var(--font);
+      text-decoration: none;
+      display: inline-flex; align-items: center;
+      transition: border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .footer-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 80px 20px; }
+    .empty-state p { color: var(--text-2); font-size: 0.9rem; margin-bottom: 16px; }
+    .empty-state a { color: var(--accent); text-decoration: none; }
+    .empty-state a:hover { text-decoration: underline; }
+
+    /* ── Feature 2: Radar chart section ── */
+    .radar-section {
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .radar-header {
+      font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #7c6af7;
+      text-transform: uppercase;
+      font-variant: small-caps;
+      margin-bottom: 4px;
+    }
+    .radar-subtext {
+      font-size: 0.72rem;
+      color: var(--text-2);
+      margin-bottom: 20px;
+    }
+
+    /* ── Feature 3: Toast notification ── */
+    #hm-toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      border: 1px solid #4ade80;
+      color: #4ade80;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-family: var(--font);
+      font-size: 0.8rem;
+      z-index: 99999;
+      letter-spacing: 0.04em;
+      box-shadow: 0 4px 20px rgba(74,222,128,0.2);
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       VISUAL DATA COMPONENTS — ADDS 1-4
+       ══════════════════════════════════════════════════════════ */
+
+    /* Expand max-height for sections that receive extra visual content */
+    .as-section.expanded.agent-researcher .as-body,
+    .as-section.expanded.agent-engineer .as-body { max-height: 12000px; }
+
+    /* ── ADD 1: Competitor Comparison Table ── */
+    .competitor-table-wrap {
+      padding: 16px 24px 24px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .comp-section-label {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.15em; color: #7c6af7;
+      text-transform: uppercase; font-variant: small-caps;
+      margin-bottom: 12px;
+    }
+    .comp-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.78rem; font-family: 'JetBrains Mono', monospace;
+    }
+    .comp-table th, .comp-table td {
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: left;
+    }
+    .comp-th {
+      background: #0d0d1a;
+      font-size: 0.67rem; font-weight: 700;
+      letter-spacing: 0.08em; color: #3d3c52;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .comp-th.your-idea-col { color: #7c6af7; }
+    .comp-td { color: #7a7895; }
+    .comp-td-alt { background: rgba(255,255,255,0.02); }
+    .comp-td.your-idea-col {
+      background: rgba(124,106,247,0.08) !important;
+      border-left: 2px solid #7c6af7 !important;
+      color: #e8e6f0; font-weight: 600;
+    }
+    .comp-td.row-label {
+      color: #7a7895; font-size: 0.72rem; font-weight: 500;
+      background: #0d0d1a; white-space: nowrap;
+    }
+    .comp-check { color: #4ade80; font-weight: 700; }
+    .comp-cross  { color: #ef4444; font-weight: 700; }
+
+    /* ── ADD 2: Build Timeline ── */
+    .timeline-wrap {
+      padding: 16px 24px 24px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .timeline-section-label {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.15em; color: #f59e0b;
+      text-transform: uppercase; font-variant: small-caps;
+      margin-bottom: 14px;
+    }
+    .timeline-rows { display: flex; flex-direction: column; gap: 5px; }
+    .timeline-row  { display: flex; align-items: center; gap: 10px; height: 28px; }
+    .timeline-label {
+      width: 70px; font-size: 0.7rem; color: #7a7895;
+      font-family: 'JetBrains Mono', monospace;
+      flex-shrink: 0; text-align: right;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .timeline-bar-track {
+      flex: 1; height: 28px; background: #0d0d1a;
+      border-radius: 4px; position: relative; overflow: hidden;
+    }
+    .timeline-bar-fill {
+      position: absolute; top: 0; height: 100%;
+      background: rgba(245,158,11,0.75); border-radius: 4px;
+      transition: width 600ms cubic-bezier(0.4,0,0.2,1);
+    }
+    .timeline-bar-label {
+      position: absolute; right: 8px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.6rem; color: rgba(255,255,255,0.32);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.03em; white-space: nowrap; pointer-events: none;
+    }
+
+    /* ── ADD 3: Tech Stack Pills ── */
+    .stack-pills-wrap {
+      padding: 16px 24px 24px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .stack-section-label {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.15em; color: #f59e0b;
+      text-transform: uppercase; font-variant: small-caps;
+      margin-bottom: 12px;
+    }
+    .stack-pills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .stack-pill {
+      display: flex; align-items: center; gap: 7px;
+      background: #0d0d1a; border: 1px solid #2a2a2a;
+      border-radius: 99px; padding: 5px 12px 5px 6px;
+      font-size: 0.74rem; font-family: 'JetBrains Mono', monospace;
+      color: #f0ece4;
+      opacity: 0; transform: scale(0.8);
+      transition: opacity 250ms ease-out, transform 250ms ease-out;
+    }
+    .stack-pill.visible { opacity: 1; transform: scale(1); }
+    .stack-pill-avatar {
+      width: 20px; height: 20px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 700;
+      color: rgba(0,0,0,0.8); flex-shrink: 0; text-transform: uppercase;
+    }
+    .stack-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── ADD 4: Risk Meter ── */
+    .risk-meter-wrap {
+      margin-bottom: 16px; padding: 12px 16px 14px;
+      background: rgba(10,10,20,0.6);
+      border: 1px solid rgba(239,68,68,0.12);
+      border-radius: 8px;
+    }
+    .risk-meter-header {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 9px;
+    }
+    .risk-meter-label {
+      font-size: 0.62rem; font-weight: 700;
+      letter-spacing: 0.15em; color: #3d3c52;
+      text-transform: uppercase; font-variant: small-caps;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .risk-meter-score {
+      font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.06em; font-family: 'JetBrains Mono', monospace;
+    }
+    .risk-meter-track {
+      width: 100%; height: 8px;
+      background: #1a1a1a; border-radius: 99px; overflow: hidden;
+    }
+    .risk-meter-fill {
+      height: 100%; width: 0%; border-radius: 99px;
+      transition: width 800ms cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── Build Pack ── */
+    #buildpack-btn {
+      background: linear-gradient(135deg, #7c6af7, #5b4de0);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 10px 20px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+      box-shadow: 0 0 20px rgba(124,106,247,0.3);
+    }
+    #buildpack-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 28px rgba(124,106,247,0.45);
+    }
+    #buildpack-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    #buildpack-btn::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -60%; bottom: 0; width: 40%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+      animation: bp-shimmer 2.5s ease-in-out infinite;
+    }
+    @keyframes bp-shimmer { 0% { left: -60%; } 100% { left: 130%; } }
+
+    #buildpack-panel {
+      margin-top: 32px;
+      border: 1px solid rgba(124,106,247,0.25);
+      border-radius: 16px;
+      overflow: hidden;
+      animation: card-entrance 400ms ease-out both;
+    }
+    .bp-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: rgba(124,106,247,0.06);
+      border-bottom: 1px solid rgba(124,106,247,0.12);
+    }
+    .bp-panel-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .bp-panel-status {
+      font-size: 0.7rem;
+      color: var(--text-2);
+      letter-spacing: 0.04em;
+    }
+    .bp-agents {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .bp-agent-row {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      overflow: hidden;
+    }
+    .bp-agent-row:last-child { border-bottom: none; }
+    .bp-agent-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 24px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 150ms ease-out;
+    }
+    .bp-agent-header:hover { background: rgba(124,106,247,0.03); }
+    .bp-agent-icon {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      transition: border-color 300ms, background 300ms;
+    }
+    .bp-agent-row.thinking .bp-agent-icon,
+    .bp-agent-row.streaming .bp-agent-icon {
+      border-color: var(--accent);
+      background: rgba(124,106,247,0.12);
+      animation: icon-rock 1.8s ease-in-out infinite;
+    }
+    .bp-agent-row.done .bp-agent-icon {
+      border-color: var(--success);
+      background: rgba(74,222,128,0.12);
+    }
+    .bp-agent-name {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+    }
+    .bp-agent-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 99px;
+      border: 1px solid;
+    }
+    .bp-agent-row.idle     .bp-agent-badge { color: var(--text-3); border-color: var(--border); }
+    .bp-agent-row.thinking .bp-agent-badge { color: var(--accent); border-color: rgba(124,106,247,0.4); background: rgba(124,106,247,0.08); animation: pulse-bp 1.2s ease-in-out infinite; }
+    .bp-agent-row.streaming .bp-agent-badge { color: var(--accent); border-color: rgba(124,106,247,0.4); background: rgba(124,106,247,0.08); }
+    .bp-agent-row.done .bp-agent-badge { color: var(--success); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+    @keyframes pulse-bp { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    @keyframes icon-rock { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-5deg)} 75%{transform:rotate(5deg)} }
+
+    .bp-agent-output {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 400ms cubic-bezier(0.4,0,0.2,1);
+      font-size: 0.78rem;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+    .bp-agent-row.done .bp-agent-output { max-height: 4000px; }
+    .bp-agent-output-inner {
+      padding: 0 24px 20px;
+    }
+    .bp-agent-output-inner pre {
+      background: #0a0a14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      color: #c9c7d4;
+      margin-bottom: 12px;
+      white-space: pre;
+    }
+    .bp-agent-output-inner code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .bp-download-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 24px 16px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+    .bp-dl-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-2);
+      font-family: var(--font);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 6px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: border-color 150ms, color 150ms;
+      letter-spacing: 0.03em;
+    }
+    .bp-dl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Print ── */
+    @media print {
+      body { background: white !important; color: black !important; }
+      nav, .footer-actions, #neural-bg, #cursor-dot { display: none !important; }
+      .hero-card { border: 1px solid #aaa !important; background: white !important; border-radius: 4px !important; animation: none !important; box-shadow: none !important; }
+      .card-report-label { color: #555 !important; }
+      .card-title { color: black !important; }
+      .as-body { max-height: none !important; overflow: visible !important; }
+      .as-section { break-inside: avoid; }
+      * { color: #222 !important; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="neural-bg"></canvas>
+  <div id="cursor-dot"></div>
+
+  <nav>
+    <a href="/" class="nav-logo">HIVEMIND</a>
+    <a href="/app" class="nav-back">&#8592; New Session</a>
+  </nav>
+
+  <div class="page">
+    <div class="hero-card" id="hero-card">
+      <div id="page-content">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+    <div id="buildpack-panel" style="display:none; width:100%; max-width:900px; margin-top:24px;">
+      <div class="bp-panel-header">
+        <span class="bp-panel-title">⚡ Build Pack</span>
+        <span class="bp-panel-status" id="bp-status">Generating...</span>
+      </div>
+      <div class="bp-agents" id="bp-agents">
+        <div class="bp-agent-row idle" data-agent="Scaffolder">
+          <div class="bp-agent-header" onclick="this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight = this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight ? '' : '4000px'">
+            <div class="bp-agent-icon">🏗</div>
+            <span class="bp-agent-name">Scaffolder</span>
+            <span class="bp-agent-badge">IDLE</span>
+          </div>
+          <div class="bp-agent-output"><div class="bp-agent-output-inner" id="bp-out-Scaffolder"></div></div>
+        </div>
+        <div class="bp-agent-row idle" data-agent="README">
+          <div class="bp-agent-header" onclick="this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight = this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight ? '' : '4000px'">
+            <div class="bp-agent-icon">📄</div>
+            <span class="bp-agent-name">README Writer</span>
+            <span class="bp-agent-badge">IDLE</span>
+          </div>
+          <div class="bp-agent-output"><div class="bp-agent-output-inner" id="bp-out-README"></div></div>
+        </div>
+        <div class="bp-agent-row idle" data-agent="Slides">
+          <div class="bp-agent-header" onclick="this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight = this.closest('.bp-agent-row').querySelector('.bp-agent-output').style.maxHeight ? '' : '4000px'">
+            <div class="bp-agent-icon">🎯</div>
+            <span class="bp-agent-name">Slide Writer</span>
+            <span class="bp-agent-badge">IDLE</span>
+          </div>
+          <div class="bp-agent-output"><div class="bp-agent-output-inner" id="bp-out-Slides"></div></div>
+        </div>
+      </div>
+      <div class="bp-download-bar" id="bp-download-bar" style="display:none"></div>
+    </div>
+  </div>
+
+  <script>
+    const AGENT_CONFIG = [
+      { name: "Researcher", cssClass: "agent-researcher" },
+      { name: "Ideator",    cssClass: "agent-ideator"    },
+      { name: "Engineer",   cssClass: "agent-engineer"   },
+      { name: "Critic",     cssClass: "agent-critic"     },
+      { name: "Presenter",  cssClass: "agent-presenter"  },
+    ];
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    const RESULTS_KEY = "hivemind_results";
+
+    if (typeof marked !== "undefined") {
+      marked.setOptions({ breaks: true, gfm: true });
+    }
+
+    function safeMarked(md) {
+      if (!md) return "";
+      if (typeof marked !== "undefined") {
+        return marked.parse(md).replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+      }
+      return md.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // Pitch label patterns (Presenter output)
+    const PITCH_LABEL_RE = /^(HOOK|PROBLEM|SOLUTION|DEMO MOMENT|TECH STACK|WHY WE WIN)(\s*\([^)]*\))?(\s*:)?$/i;
+
+    // Critic label patterns (Critic output)
+    const CRITIC_LABEL_RE = /^(BIGGEST RISK|ALREADY EXISTS|TECHNICAL DANGER|JUDGE OBJECTION|FIXES)(\s*:)?$/i;
+
+    function renderStructuredText(rawText, labelRe, labelColor, labelBg, labelBorder) {
+      const lines = rawText.split('\n');
+      const parts = [];
+      let pendingLabel = null;
+      let contentLines = [];
+
+      function flushContent() {
+        if (contentLines.length === 0) return;
+        const joined = contentLines.join('\n').trim();
+        if (joined) {
+          parts.push(`<p style="color:#c9c7d4;font-size:0.9rem;line-height:1.8;margin:0 0 12px 0">${esc(joined).replace(/\n/g, '<br>')}</p>`);
+        }
+        contentLines = [];
+      }
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim();
+        // Strip trailing colon for matching but keep original for display
+        const stripped = line.replace(/:$/, '').trim();
+        if (labelRe.test(stripped)) {
+          flushContent();
+          if (pendingLabel !== null) parts.push(pendingLabel);
+          pendingLabel = `<div style="display:inline-block;color:${labelColor};font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;padding:3px 10px;background:${labelBg};border:1px solid ${labelBorder};border-radius:4px;margin:20px 0 8px 0;line-height:1.6">${esc(stripped)}</div>`;
+        } else {
+          if (pendingLabel !== null) {
+            parts.push(pendingLabel);
+            pendingLabel = null;
+          }
+          if (line) {
+            contentLines.push(line);
+          } else {
+            flushContent();
+          }
+        }
+      }
+      if (pendingLabel !== null) parts.push(pendingLabel);
+      flushContent();
+      return parts.join('\n');
+    }
+
+    function formatDate(isoStr) {
+      try {
+        const d = new Date(isoStr);
+        return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' });
+      } catch { return isoStr || ""; }
+    }
+
+    function toggleSection(header) {
+      const section = header.closest('.as-section');
+      section.classList.toggle('expanded');
+      if (typeof lucide !== "undefined") lucide.createIcons();
+    }
+
+    function renderAgentPills(agents, outputs) {
+      const row = document.createElement('div');
+      row.className = 'agent-pills-row';
+      agents.forEach(ag => {
+        if (!outputs[ag.name]) return;
+        const pill = document.createElement('div');
+        pill.className = 'agent-pill';
+        pill.innerHTML = `<span class="pill-name">${esc(ag.name)}</span><span class="pill-model">Gemini 2.5 Flash</span>`;
+        row.appendChild(pill);
+      });
+      return row;
+    }
+
+    function extractPitchField(text, label) {
+      // Matches "LABEL (optional parens): content until next all-caps label or end"
+      const re = new RegExp(label + '[^:\\n]*:\\s*([\\s\\S]+?)(?=\\n\\s*\\n[A-Z]{3,}|\\n[A-Z]{3,}[^a-z]|$)', 'i');
+      const m = text.match(re);
+      return m ? m[1].trim() : '';
+    }
+
+    function renderPitchSection(outputs) {
+      const pitchText = outputs["Presenter"];
+      if (!pitchText) return null;
+
+      const hook     = extractPitchField(pitchText, 'HOOK');
+      const problem  = extractPitchField(pitchText, 'PROBLEM');
+      const solution = extractPitchField(pitchText, 'SOLUTION');
+      const demo     = extractPitchField(pitchText, 'DEMO MOMENT');
+      const stack    = extractPitchField(pitchText, 'TECH STACK');
+      const why      = extractPitchField(pitchText, 'WHY WE WIN');
+
+      const section = document.createElement('div');
+      section.className = 'pitch-section';
+
+      // Build grid cards for the body fields
+      const bodyFields = [
+        { label: 'Problem',    text: problem  },
+        { label: 'Solution',   text: solution },
+        { label: 'Demo Moment',text: demo     },
+        { label: 'Tech Stack', text: stack    },
+      ].filter(f => f.text);
+
+      const gridHtml = bodyFields.map(f => `
+        <div class="pitch-body-card">
+          <span class="pitch-body-card-label">${esc(f.label)}</span>
+          <p>${esc(f.text)}</p>
+        </div>
+      `).join('');
+
+      const winHtml = why ? `
+        <div class="pitch-win-row">
+          <span class="pitch-win-row-label">Why We Win</span>
+          ${esc(why)}
+        </div>
+      ` : '';
+
+      section.innerHTML = `
+        <div class="pitch-label">🎤 YOUR WINNING PITCH</div>
+        ${hook ? `<div class="pitch-hook"><span class="pitch-hook-label">Hook</span>${esc(hook)}</div>` : ''}
+        ${gridHtml ? `<div class="pitch-body-grid">${gridHtml}</div>` : ''}
+        ${winHtml}
+      `;
+
+      return section;
+    }
+
+    function renderCriticSection(outputs) {
+      const criticText = outputs["Critic"];
+      const section = document.createElement('div');
+      section.className = 'mp-section';
+      if (!criticText) {
+        section.innerHTML = `<div class="mp-label">⚠️ CRITIC'S ASSESSMENT</div><div class="mp-desc" style="color:var(--text-3);margin-top:8px">No critic output available.</div>`;
+        return section;
+      }
+      section.innerHTML = `
+        <div class="mp-label">⚠️ CRITIC'S ASSESSMENT</div>
+        <div class="mp-desc">Stress test from the Critic agent</div>
+        <div class="mp-content"></div>
+      `;
+      // ADD 4: Risk meter injected after mp-desc
+      section.querySelector('.mp-desc').insertAdjacentElement('afterend', renderRiskMeter(criticText));
+      const mpContent = section.querySelector('.mp-content');
+      mpContent.innerHTML = renderStructuredText(criticText, CRITIC_LABEL_RE, '#ef4444', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.2)');
+      return section;
+    }
+
+    function renderAgentSections(outputs) {
+      const frag = document.createDocumentFragment();
+
+      const sectionHeading = document.createElement('div');
+      sectionHeading.className = 'section-heading';
+      sectionHeading.setAttribute('data-scroll-bar', 'true');
+      sectionHeading.textContent = 'AGENT OUTPUTS';
+      frag.appendChild(sectionHeading);
+
+      const agentsToShow = ["Researcher", "Ideator", "Engineer"];
+      agentsToShow.forEach(agentName => {
+        const output = outputs[agentName];
+        if (!output) return;
+        const conf = AGENT_CONFIG.find(a => a.name === agentName);
+        const cssClass = conf ? conf.cssClass : '';
+        const section = document.createElement('div');
+        section.className = `as-section ${cssClass} expanded`;
+        section.innerHTML = `
+          <div class="as-header" onclick="toggleSection(this)">
+            <div class="as-header-left">
+              <span class="as-name">${esc(agentName)}</span>
+              <span class="as-model-pill">Gemini 2.5 Flash</span>
+            </div>
+            <i data-lucide="chevron-right" class="as-chevron"></i>
+          </div>
+          <div class="as-body">
+            <div class="as-output"></div>
+          </div>
+        `;
+        section.querySelector('.as-output').innerHTML = safeMarked(output);
+        // ADD 1 & 2 & 3: Visual components per agent
+        const asBody = section.querySelector('.as-body');
+        if (agentName === 'Researcher') {
+          asBody.appendChild(renderCompetitorTable(output));
+        } else if (agentName === 'Engineer') {
+          asBody.appendChild(renderBuildTimeline(output));
+          asBody.appendChild(renderStackPills(output));
+        }
+        frag.appendChild(section);
+      });
+
+      return frag;
+    }
+
+    // ── ADD 1: Competitor Comparison Table ────────────────────────────────────
+    function inferCompValue(context, type) {
+      switch (type) {
+        case 'target':
+          if (/enterprise|corporate|fortune|large compan/.test(context)) return 'Enterprise';
+          if (/\bb2b\b|business team|organization/.test(context)) return 'B2B';
+          if (/developer|dev\b|engineer|programmer|technical/.test(context)) return 'Developers';
+          return 'Developers';
+        case 'price':
+          if (/\bfree\b|open.?source|no cost/.test(context)) return 'Free';
+          if (/expensive|premium|\$\$\$|costly|high.?price/.test(context)) return '$$$';
+          if (/\bpaid\b|subscription|\$\$|freemium/.test(context)) return '$$';
+          return '$$';
+        case 'ease':
+          if (/complex|difficult|steep learning|complicated|hard to use|not intuitive/.test(context)) return 'Complex';
+          if (/moderate|medium|some learning|intermediate/.test(context)) return 'Medium';
+          if (/simple|easy|intuitive|user.?friendly/.test(context)) return 'Simple';
+          return 'Medium';
+        case 'actionable':
+          if (/not actionable|passive|no action|insight only/.test(context)) return '✗';
+          if (/limited|partial|basic/.test(context)) return 'Partial';
+          return '✗';
+        default: return '—';
+      }
+    }
+
+    function parseCompetitors(researcherText) {
+      if (!researcherText) return [];
+      const sectionMatch = researcherText.match(/EXISTING SOLUTIONS[\s\S]*?\n([\s\S]+?)(?=\n\n[A-Z*#]|MARKET GAPS|$)/i);
+      const section = sectionMatch ? sectionMatch[1] : researcherText.slice(0, 900);
+
+      const competitors = [];
+      const boldRe = /\*\*([^\*\n]{2,50})\*\*/g;
+      let m;
+      while ((m = boldRe.exec(section)) !== null && competitors.length < 3) {
+        let name = m[1].trim()
+          .replace(/\s*\(https?:\/\/[^\)]+\)/g, '')
+          .replace(/\s*\([\w.\/]+\)/g, '')
+          .trim();
+        if (name.length < 2 || name.length > 50 || /^(existing|market|gap|opportunity|solution)/i.test(name)) continue;
+        const ctx = section.slice(m.index, m.index + 350).toLowerCase();
+        competitors.push({ name, targetUsers: inferCompValue(ctx,'target'), price: inferCompValue(ctx,'price'), ease: inferCompValue(ctx,'ease'), actionable: inferCompValue(ctx,'actionable') });
+      }
+
+      if (competitors.length === 0) {
+        const listRe = /^\d+\.\s+(?:\*\*)?([A-Z][A-Za-z0-9\s\-]{1,40})(?:\*\*)?/gm;
+        while ((m = listRe.exec(section)) !== null && competitors.length < 3) {
+          let name = m[1].trim().replace(/[:\-–].*$/, '').trim();
+          if (name.length < 2 || name.length > 50) continue;
+          const ctx = section.slice(m.index, m.index + 350).toLowerCase();
+          competitors.push({ name, targetUsers: inferCompValue(ctx,'target'), price: inferCompValue(ctx,'price'), ease: inferCompValue(ctx,'ease'), actionable: inferCompValue(ctx,'actionable') });
+        }
+      }
+
+      if (competitors.length === 0) competitors.push({ name: 'Existing Tool A', targetUsers: 'Enterprise', price: '$$$', ease: 'Complex', actionable: '✗' });
+      if (competitors.length === 1) competitors.push({ name: 'Existing Tool B', targetUsers: 'Developers', price: '$$',  ease: 'Medium', actionable: '✗' });
+      return competitors.slice(0, 2);
+    }
+
+    function renderCompetitorTable(researcherText) {
+      const comps = parseCompetitors(researcherText);
+      const YOUR = { targetUsers: '✓ Anyone', price: '✓ Free', ease: '✓ Simple', actionable: '✓ Yes' };
+      const ROWS = [
+        { label: 'Target Users', key: 'targetUsers' },
+        { label: 'Price',        key: 'price' },
+        { label: 'Ease of Use',  key: 'ease' },
+        { label: 'Actionable',   key: 'actionable' },
+      ];
+
+      const thead = `<thead><tr>
+        <th class="comp-th" style="width:110px"></th>
+        ${comps.map(c => `<th class="comp-th">${esc(c.name)}</th>`).join('')}
+        <th class="comp-th your-idea-col">YOUR IDEA</th>
+      </tr></thead>`;
+
+      const tbody = '<tbody>' + ROWS.map((row, ri) => {
+        const altCls = ri % 2 === 1 ? ' comp-td-alt' : '';
+        const compCells = comps.map(c => {
+          const v = c[row.key] || '—';
+          let disp = esc(v);
+          if (v === '✗')        disp = '<span class="comp-cross">✗</span> No';
+          else if (v==='Partial') disp = '<span style="color:#f59e0b">◑</span> Partial';
+          return `<td class="comp-td${altCls}">${disp}</td>`;
+        }).join('');
+        const yv   = YOUR[row.key] || '✓';
+        const yText = esc(yv.replace(/^✓\s*/, ''));
+        return `<tr>
+          <td class="comp-td row-label${altCls}">${esc(row.label)}</td>
+          ${compCells}
+          <td class="comp-td your-idea-col${altCls}"><span class="comp-check">✓</span> ${yText}</td>
+        </tr>`;
+      }).join('') + '</tbody>';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'competitor-table-wrap';
+      wrap.innerHTML = `<div class="comp-section-label">COMPETITIVE LANDSCAPE</div>
+        <div style="overflow-x:auto"><table class="comp-table">${thead}${tbody}</table></div>`;
+      return wrap;
+    }
+
+    // ── ADD 2: Build Timeline ──────────────────────────────────────────────────
+    function renderBuildTimeline(engineerText) {
+      const TOTAL = 48;
+      let phases = [];
+
+      if (engineerText) {
+        const hourRe = /Hours?\s+(\d+)\s*[-–—]\s*(\d+)\s*:?\s*(.+?)(?=\n|$)/gi;
+        let m;
+        while ((m = hourRe.exec(engineerText)) !== null) {
+          const start = parseInt(m[1]), end = parseInt(m[2]);
+          if (isNaN(start) || isNaN(end) || end <= start) continue;
+          const desc = m[3].trim().replace(/\*\*/g, '');
+          const words = desc.split(/\s+/);
+          const label = words.slice(0, 3).join(' ').replace(/[,;:]$/, '');
+          phases.push({ start, end, label, full: desc });
+        }
+      }
+
+      if (phases.length === 0) phases = [
+        { start:  0, end:  4, label: 'Setup',    full: 'Environment & project scaffolding' },
+        { start:  4, end: 12, label: 'Backend',   full: 'Core backend & data model' },
+        { start: 12, end: 24, label: 'AI Layer',  full: 'AI/API integration' },
+        { start: 24, end: 36, label: 'Frontend',  full: 'Frontend UI & interactions' },
+        { start: 36, end: 48, label: 'Demo Prep', full: 'Polish, testing & demo prep' },
+      ];
+
+      const marks = [0, 4, 12, 24, 36, 48];
+      const markHtml = marks.map(h =>
+        `<span style="position:absolute;left:${((h/TOTAL)*100).toFixed(1)}%;transform:translateX(-50%);font-size:0.59rem;color:#3d3c52;font-family:'JetBrains Mono',monospace">${h}h</span>`
+      ).join('');
+
+      const rowsHtml = phases.map((p, i) => {
+        const left  = ((p.start / TOTAL) * 100).toFixed(1);
+        const width = (((p.end - p.start) / TOTAL) * 100).toFixed(1);
+        const lbl   = p.label.length > 9 ? p.label.slice(0,9)+'…' : p.label;
+        return `<div class="timeline-row">
+          <div class="timeline-label" title="${esc(p.full)}">${esc(lbl)}</div>
+          <div class="timeline-bar-track">
+            <div class="timeline-bar-fill" data-tw="${width}" data-left="${left}" data-delay="${i*100}" style="left:${left}%;width:0%"></div>
+            <div class="timeline-bar-label">${p.start}–${p.end}h</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const wrap = document.createElement('div');
+      wrap.className = 'timeline-wrap';
+      wrap.innerHTML = `<div class="timeline-section-label">BUILD TIMELINE</div>
+        <div style="position:relative;height:18px;margin-bottom:6px;margin-left:80px;">${markHtml}</div>
+        <div class="timeline-rows">${rowsHtml}</div>`;
+      return wrap;
+    }
+
+    // ── ADD 3: Tech Stack Pills ────────────────────────────────────────────────
+    function renderStackPills(engineerText) {
+      let items = [];
+      if (engineerText) {
+        const secMatch = engineerText.match(/TECH STACK\s*\n([\s\S]+?)(?=\n\s*\n[A-Z]|BUILD PLAN|$)/i);
+        const sec = secMatch ? secMatch[1] : '';
+        if (sec) {
+          items = sec.split(/[\n,·•]/)
+            .map(s => s.replace(/^[-*\s\d.]+/, '').replace(/\s*\(.*?\)/g,'').trim())
+            .filter(s => s.length > 1 && s.length < 40 && !/^(list|every|specific|no\b|and\b|the\b|use\b)/i.test(s));
+        }
+        if (items.length === 0) {
+          const inline = engineerText.match(/TECH STACK[^:\n]*:\s*(.+)/i);
+          if (inline) items = inline[1].split(/[,·•\|·\/]/).map(s=>s.trim()).filter(s=>s.length>1&&s.length<40);
+        }
+      }
+      if (items.length === 0) items = ['FastAPI','Python','Vanilla JS','HTML/CSS','Gemini API'];
+
+      const FRONTEND = /html|css|javascript|vanilla|react|vue|svelte|tailwind|next|nuxt|front.?end|browser|dom/i;
+      const AI_API   = /gemini|gpt|openai|claude|anthropic|llm|ai\b|ml\b|\bapi\b|model|hugging|embedding|vector|bert/i;
+
+      const pillsHtml = items.slice(0, 12).map((item, i) => {
+        const letter = (item.trim()[0] || 'X').toUpperCase();
+        let dotColor = '#f59e0b', avatarBg = '#f59e0b';
+        if (FRONTEND.test(item)) { dotColor = '#58a6ff'; avatarBg = '#58a6ff'; }
+        else if (AI_API.test(item)) { dotColor = '#7c6af7'; avatarBg = '#7c6af7'; }
+        return `<div class="stack-pill" data-delay="${i*50}">
+          <div class="stack-pill-avatar" style="background:${avatarBg}">${esc(letter)}</div>
+          <span class="stack-dot" style="background:${dotColor}"></span>
+          <span>${esc(item)}</span>
+        </div>`;
+      }).join('');
+
+      const wrap = document.createElement('div');
+      wrap.className = 'stack-pills-wrap';
+      wrap.innerHTML = `<div class="stack-section-label">TECH STACK</div>
+        <div class="stack-pills-grid">${pillsHtml}</div>`;
+      return wrap;
+    }
+
+    // ── ADD 4: Risk Meter ──────────────────────────────────────────────────────
+    function renderRiskMeter(criticText) {
+      const text = (criticText || '').toLowerCase();
+      const highHits = (text.match(/\b(impossible|critical flaw|fatal|insurmountable|won't work|fundamentally broken)\b/g)||[]).length;
+      const midHits  = (text.match(/\b(risk|danger|difficult|complex|challenge|concern|problem|issue|fail|hard|unclear|threat)\b/g)||[]).length;
+      const rawScore = 4 + Math.min(3, highHits * 1.5) + Math.min(3, midHits * 0.45);
+      const score    = Math.min(10, Math.max(1, Math.round(rawScore)));
+      let color, level;
+      if (score <= 3)      { color = '#4ade80'; level = 'LOW';    }
+      else if (score <= 6) { color = '#f59e0b'; level = 'MEDIUM'; }
+      else                 { color = '#ef4444'; level = 'HIGH';   }
+      const pct = ((score / 10) * 100).toFixed(1);
+
+      const wrap = document.createElement('div');
+      wrap.className = 'risk-meter-wrap';
+      wrap.innerHTML = `
+        <div class="risk-meter-header">
+          <span class="risk-meter-label">OVERALL RISK</span>
+          <span class="risk-meter-score" style="color:${color}">${score}/10 &nbsp; ${level}</span>
+        </div>
+        <div class="risk-meter-track">
+          <div class="risk-meter-fill" data-tw="${pct}" style="background:${color}"></div>
+        </div>`;
+      return wrap;
+    }
+
+    // ── Feature 2: Radar chart ─────────────────────────────────────────────────
+    function scoreOutputs(outputs) {
+      const critic   = (outputs.Critic   || '').toLowerCase();
+      const engineer = (outputs.Engineer || '').toLowerCase();
+      const ideator  = (outputs.Ideator  || '').toLowerCase();
+      const presenter= (outputs.Presenter|| '').toLowerCase();
+
+      const marketSignals  = (ideator + presenter).match(/\b(market|gap|users|demand|million|billion|scale|growth|global|industry)\b/g) || [];
+      const riskSignals    = critic.match(/\b(risk|danger|difficult|complex|impossible|hard|challenge|problem|fail|issue)\b/g) || [];
+      const innovSignals   = (ideator + presenter).match(/\b(novel|unique|first|new|innovative|original|breakthrough|never|nobody)\b/g) || [];
+      const demoSignals    = presenter.match(/\b(demo|live|show|impressive|visual|interact|click|see|watch|display|browser)\b/g) || [];
+      const complexSignals = engineer.match(/\b(complex|difficult|weeks|month|integration|api|model|train|custom|machine)\b/g) || [];
+
+      return [
+        { label: 'Market Size',   score: Math.min(10, Math.max(4, 5 + Math.floor(marketSignals.length / 2))) },
+        { label: 'Feasibility',   score: Math.min(10, Math.max(4, 10 - Math.floor(riskSignals.length * 1.5))) },
+        { label: 'Innovation',    score: Math.min(10, Math.max(4, 5 + innovSignals.length)) },
+        { label: 'Demo-ability',  score: Math.min(10, Math.max(5, 6 + Math.floor(demoSignals.length / 2))) },
+        { label: 'Time to Build', score: Math.min(10, Math.max(4, 9 - Math.floor(complexSignals.length / 2))) },
+      ];
+    }
+
+    function renderRadarChart(outputs) {
+      const scores = scoreOutputs(outputs);
+      const N = 5, cx = 140, cy = 140, R = 90;
+
+      function pt(i, r) {
+        const a = -Math.PI / 2 + i * (2 * Math.PI / N);
+        return { x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) };
+      }
+      function pentagon(r) {
+        return Array.from({ length: N }, (_, i) => pt(i, r))
+          .map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z';
+      }
+
+      const dataPoints = scores.map((s, i) => pt(i, (s.score / 10) * R));
+      const dataPath   = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ') + ' Z';
+
+      let axisLines = '', dots = '', labels = '';
+      for (let i = 0; i < N; i++) {
+        const outer = pt(i, R);
+        const lp    = pt(i, R + 24);
+        const anchor = lp.x < cx - 4 ? 'end' : lp.x > cx + 4 ? 'start' : 'middle';
+        axisLines += `<line x1="${cx}" y1="${cy}" x2="${outer.x.toFixed(1)}" y2="${outer.y.toFixed(1)}" stroke="#2a2a2a" stroke-width="1"/>`;
+        dots      += `<circle cx="${dataPoints[i].x.toFixed(1)}" cy="${dataPoints[i].y.toFixed(1)}" r="5" fill="#7c6af7"/>`;
+        labels    += `<text x="${lp.x.toFixed(1)}" y="${(lp.y + 1).toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle" font-family="'JetBrains Mono',monospace" font-size="9" fill="#8a8a8a">${scores[i].label} <tspan fill="#a8a4bd" font-weight="700">${scores[i].score}/10</tspan></text>`;
+      }
+
+      const section = document.createElement('div');
+      section.className = 'radar-section';
+      section.innerHTML = `
+        <div class="radar-header">IDEA SCORE</div>
+        <div class="radar-subtext">Based on agent analysis</div>
+        <svg width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;overflow:visible">
+          <style>
+            @keyframes radar-scale-in {
+              from { transform: scale(0); opacity: 0; }
+              to   { transform: scale(1); opacity: 1; }
+            }
+          </style>
+          <path d="${pentagon(R * 0.33)}" fill="none" stroke="#2a2a2a" stroke-width="1"/>
+          <path d="${pentagon(R * 0.67)}" fill="none" stroke="#2a2a2a" stroke-width="1"/>
+          <path d="${pentagon(R)}"        fill="none" stroke="#2a2a2a" stroke-width="1"/>
+          ${axisLines}
+          <g style="transform-origin:${cx}px ${cy}px;animation:radar-scale-in 800ms cubic-bezier(0.34,1.56,0.64,1) 200ms both">
+            <path d="${dataPath}" fill="rgba(124,106,247,0.20)" stroke="#7c6af7" stroke-width="2" stroke-linejoin="round"/>
+            ${dots}
+          </g>
+          ${labels}
+        </svg>
+      `;
+      return section;
+    }
+
+    // ── Feature 3: README generator ────────────────────────────────────────────
+    function showToast(msg) {
+      const old = document.getElementById('hm-toast');
+      if (old) old.remove();
+      const toast = document.createElement('div');
+      toast.id = 'hm-toast';
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      toast.animate([
+        { opacity: 0, transform: 'translateX(-50%) scale(0.9)' },
+        { opacity: 1, transform: 'translateX(-50%) scale(1)'   },
+      ], { duration: 200, fill: 'forwards' });
+      setTimeout(() => {
+        toast.animate([
+          { opacity: 1, transform: 'translateX(-50%) scale(1)'   },
+          { opacity: 0, transform: 'translateX(-50%) scale(0.9)' },
+        ], { duration: 200, fill: 'forwards' }).onfinish = () => toast.remove();
+      }, 2000);
+    }
+
+    function generateReadme(outputs, theme) {
+      const engineerText  = outputs.Engineer  || '';
+      const ideatorText   = outputs.Ideator   || '';
+      const presenterText = outputs.Presenter || '';
+
+      // Idea name
+      let ideaName = 'My Hackathon Project';
+      const chosenMatch = engineerText.match(/CHOSEN IDEA:\s*(.+)/i);
+      if (chosenMatch) ideaName = chosenMatch[1].trim().replace(/[\*\[\]]/g, '').trim();
+
+      const ideaSlug = ideaName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+      // Hook
+      let hook = 'A winning hackathon project.';
+      const hookMatch = presenterText.match(/HOOK[^:\n]*:\s*(.+)/i);
+      if (hookMatch) hook = hookMatch[1].trim();
+
+      // Problem
+      let problem = 'The current solutions are inadequate.';
+      const problemMatch = presenterText.match(/PROBLEM[^:\n]*:\s*([\s\S]+?)(?=\n\s*\n|\nSOLUTION|\nDEMO|$)/i);
+      if (problemMatch) problem = problemMatch[1].trim();
+
+      // Solution
+      let solution = 'We built a better solution.';
+      const solutionMatch = presenterText.match(/SOLUTION[^:\n]*:\s*([\s\S]+?)(?=\n\s*\n|\nDEMO|\nTECH|$)/i);
+      if (solutionMatch) solution = solutionMatch[1].trim();
+
+      // Tech stack
+      let techStack = 'FastAPI · Vanilla JS · Python';
+      const techSectionMatch = engineerText.match(/TECH STACK\s*\n([\s\S]+?)(?=\n\s*\n|BUILD PLAN|$)/i);
+      if (techSectionMatch) {
+        techStack = techSectionMatch[1].trim().split('\n').map(l => l.replace(/^[-*]\s*/, '').trim()).filter(Boolean).join('\n- ');
+        techStack = '- ' + techStack;
+      } else {
+        const presenterTech = presenterText.match(/TECH STACK[^:\n]*:\s*(.+)/i);
+        if (presenterTech) techStack = presenterTech[1].trim();
+      }
+
+      const hackathonName = theme || 'Hackathon';
+
+      return `# ${ideaName}
+
+> ${hook}
+
+## Problem
+${problem}
+
+## Solution
+${solution}
+
+## Tech Stack
+${techStack}
+
+## Getting Started
+\`\`\`bash
+# Clone and run
+git clone https://github.com/yourusername/${ideaSlug}
+cd ${ideaSlug}
+pip install -r requirements.txt
+python app.py
+\`\`\`
+
+## Built at ${hackathonName}
+*Generated by HiveMind — five AI agents, one winning idea*
+`;
+    }
+
+    function renderPage(data) {
+      const outputs = data.outputs || {};
+      const agents  = data.agents  || [];
+
+      if (!Object.keys(outputs).length) { showEmpty(); return; }
+
+      const container = document.getElementById('page-content');
+      container.innerHTML = '';
+
+      // Header
+      const topRow = document.createElement('div');
+      topRow.className = 'card-top-row';
+      topRow.innerHTML = `
+        <span class="card-report-label">HIVEMIND REPORT</span>
+        <span class="card-date">${formatDate(data.timestamp)}</span>
+      `;
+      container.appendChild(topRow);
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = 'Your Hackathon Ideas';
+      container.appendChild(title);
+
+      const agentCount = Object.keys(outputs).length;
+      const subtext = document.createElement('div');
+      subtext.className = 'card-subtext';
+      subtext.textContent = `Generated by ${agentCount} agent${agentCount !== 1 ? 's' : ''} · ${data.theme || ''}`;
+      container.appendChild(subtext);
+
+      const divider = document.createElement('div');
+      divider.className = 'card-divider';
+      container.appendChild(divider);
+
+      container.appendChild(renderAgentPills(agents, outputs));
+
+      const pitchEl = renderPitchSection(outputs);
+      if (pitchEl) container.appendChild(pitchEl);
+
+      // Feature 2: Radar chart — after pitch, before critic
+      container.appendChild(renderRadarChart(outputs));
+
+      container.appendChild(renderCriticSection(outputs));
+      container.appendChild(renderAgentSections(outputs));
+
+      const footer = document.createElement('div');
+      footer.className = 'card-footer';
+      footer.innerHTML = `
+        <span class="footer-count">${agentCount} agent${agentCount !== 1 ? 's' : ''} · Ideas generated</span>
+        <div class="footer-actions">
+          <button class="footer-btn" id="copy-btn">Copy Report</button>
+          <button class="footer-btn" id="print-btn">Download PDF</button>
+          <button class="footer-btn" id="readme-btn"><i data-lucide="github" style="width:13px;height:13px;margin-right:5px;vertical-align:middle"></i>README</button>
+          <a href="/app" class="footer-btn">New Session</a>
+          <button id="buildpack-btn">⚡ Generate Build Pack</button>
+        </div>
+      `;
+      container.appendChild(footer);
+
+      if (typeof lucide !== "undefined") lucide.createIcons();
+
+      document.getElementById('copy-btn').addEventListener('click', () => {
+        const text = document.getElementById('page-content').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          const btn = document.getElementById('copy-btn');
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = 'Copy Report'; }, 2000);
+        });
+      });
+      document.getElementById('print-btn').addEventListener('click', () => window.print());
+
+      // Feature 3: README generator
+      document.getElementById('readme-btn').addEventListener('click', () => {
+        const md = generateReadme(outputs, data.theme);
+        navigator.clipboard.writeText(md).then(() => {
+          showToast('✓ README copied');
+        }).catch(() => {
+          // Fallback: prompt
+          prompt('Copy this README:', md);
+        });
+      });
+
+      // Animate all dynamic visual components after DOM is painted
+      requestAnimationFrame(() => {
+        // Timeline bars — staggered by data-delay
+        container.querySelectorAll('.timeline-bar-fill').forEach(bar => {
+          const delay = parseInt(bar.dataset.delay) || 0;
+          setTimeout(() => { bar.style.width = bar.dataset.tw + '%'; }, delay + 80);
+        });
+        // Stack pills — staggered fade+scale
+        container.querySelectorAll('.stack-pill').forEach(pill => {
+          const delay = parseInt(pill.dataset.delay) || 0;
+          setTimeout(() => { pill.classList.add('visible'); }, delay + 80);
+        });
+        // Risk meter fill
+        container.querySelectorAll('.risk-meter-fill').forEach(fill => {
+          setTimeout(() => { fill.style.width = fill.dataset.tw + '%'; }, 300);
+        });
+      });
+
+      // Scroll-based section heading bar
+      const scrollBars = document.querySelectorAll('[data-scroll-bar]');
+      const barObs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('bar-visible'); });
+      }, { threshold: 0.5 });
+      scrollBars.forEach(el => barObs.observe(el));
+
+      // Page transitions
+      document.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href');
+        if (!href || href.startsWith('#') || href.startsWith('http')) return;
+        a.addEventListener('click', ev => {
+          ev.preventDefault();
+          document.body.style.transition = 'opacity 250ms ease-out';
+          document.body.style.opacity = '0';
+          setTimeout(() => { window.location.href = href; }, 260);
+        });
+      });
+    }
+
+    function showEmpty() {
+      const container = document.getElementById('page-content');
+      container.innerHTML = `
+        <div class="empty-state">
+          <p>No results found. Go back and generate ideas first.</p>
+          <a href="/app">← Go to HiveMind</a>
+        </div>
+      `;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const raw = localStorage.getItem(RESULTS_KEY);
+        if (!raw) { showEmpty(); return; }
+        const data = JSON.parse(raw);
+        if (!data || !data.outputs) { showEmpty(); return; }
+        renderPage(data);
+      } catch (e) { showEmpty(); }
+    });
+
+    // ── Build Pack ─────────────────────────────────────────────────────────────
+    const bpTexts = { Scaffolder: '', README: '', Slides: '' };
+    let bpWs = null;
+
+    function bpSetStatus(agentName, status) {
+      const row = document.querySelector(`.bp-agent-row[data-agent="${agentName}"]`);
+      if (!row) return;
+      row.className = `bp-agent-row ${status}`;
+      const badge = row.querySelector('.bp-agent-badge');
+      if (badge) badge.textContent = status.toUpperCase();
+    }
+
+    function bpAppendToken(agentName, token) {
+      bpTexts[agentName] = (bpTexts[agentName] || '') + token;
+      const el = document.getElementById(`bp-out-${agentName}`);
+      if (!el) return;
+      // Render code blocks, otherwise plain text with cursor
+      el.innerHTML = renderBpOutput(bpTexts[agentName]) + '<span style="color:var(--accent);animation:blink 0.8s step-end infinite">█</span>';
+    }
+
+    function bpFinalize(agentName) {
+      const el = document.getElementById(`bp-out-${agentName}`);
+      if (el) el.innerHTML = renderBpOutput(bpTexts[agentName]);
+    }
+
+    function renderBpOutput(text) {
+      if (!text) return '';
+      // Split on code fences and render code blocks as <pre>
+      const parts = text.split(/(```[^\n]*\n[\s\S]*?```)/g);
+      return parts.map(part => {
+        if (part.startsWith('```')) {
+          const lines = part.split('\n');
+          const code = lines.slice(1, -1).join('\n');
+          return `<pre><code>${esc(code)}</code></pre>`;
+        }
+        // For non-code: simple line breaks, no XSS
+        return `<p style="color:var(--text-2);font-size:0.78rem;line-height:1.7;white-space:pre-wrap;margin-bottom:8px">${esc(part).trim()}</p>`;
+      }).filter(Boolean).join('');
+    }
+
+    function downloadFile(filename, content) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showBpDownloads(outputs) {
+      const bar = document.getElementById('bp-download-bar');
+      if (!bar) return;
+      bar.style.display = 'flex';
+      const files = [
+        { label: '⬇ main.py',      agent: 'Scaffolder', filename: 'main.py',      extract: t => extractFile(t, 'main.py') },
+        { label: '⬇ index.html',   agent: 'Scaffolder', filename: 'index.html',   extract: t => extractFile(t, 'static/index.html') || extractFile(t, 'index.html') },
+        { label: '⬇ requirements', agent: 'Scaffolder', filename: 'requirements.txt', extract: t => extractFile(t, 'requirements.txt') },
+        { label: '⬇ README.md',    agent: 'README',     filename: 'README.md',    extract: t => t },
+        { label: '⬇ slides.txt',   agent: 'Slides',     filename: 'slides.txt',   extract: t => t },
+      ];
+      files.forEach(f => {
+        const text = outputs[f.agent] || '';
+        const content = f.extract(text) || text;
+        if (!content.trim()) return;
+        const btn = document.createElement('button');
+        btn.className = 'bp-dl-btn';
+        btn.textContent = f.label;
+        btn.addEventListener('click', () => downloadFile(f.filename, content));
+        bar.appendChild(btn);
+      });
+    }
+
+    function extractFile(text, filename) {
+      const re = new RegExp(`---\\s*FILE:\\s*${filename.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\s*---\\n([\\s\\S]*?)(?=\\n---\\s*FILE:|$)`, 'i');
+      const m = text.match(re);
+      return m ? m[1].trim() : '';
+    }
+
+    function startBuildPack() {
+      const raw = localStorage.getItem(RESULTS_KEY);
+      if (!raw) return;
+      let data;
+      try { data = JSON.parse(raw); } catch { return; }
+
+      const btn = document.getElementById('buildpack-btn');
+      const panel = document.getElementById('buildpack-panel');
+      if (btn) btn.disabled = true;
+      if (panel) panel.style.display = 'block';
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Build prior_context from all outputs
+      const prior = Object.entries(data.outputs || {})
+        .map(([k, v]) => `=== ${k} ===\n${v}`)
+        .join('\n\n');
+
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      bpWs = new WebSocket(`${proto}://${location.host}/ws`);
+
+      bpWs.onopen = () => {
+        bpWs.send(JSON.stringify({ type: 'buildpack', theme: data.theme || '', prior_context: prior }));
+      };
+
+      bpWs.onmessage = (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        handleBpMessage(msg, data.outputs || {});
+      };
+
+      bpWs.onerror = () => {
+        document.getElementById('bp-status').textContent = 'Connection error';
+        if (btn) btn.disabled = false;
+      };
+    }
+
+    function handleBpMessage(msg, originalOutputs) {
+      const statusEl = document.getElementById('bp-status');
+      switch (msg.type) {
+        case 'phase_update':
+          bpSetStatus(msg.phase, 'thinking');
+          if (statusEl) statusEl.textContent = `Running ${msg.phase}...`;
+          break;
+        case 'agent':
+          if (msg.status === 'thinking')   { bpSetStatus(msg.agent, 'thinking'); }
+          if (msg.status === 'streaming')  { bpSetStatus(msg.agent, 'streaming'); bpAppendToken(msg.agent, msg.token || ''); }
+          if (msg.status === 'done')       { bpSetStatus(msg.agent, 'done'); bpFinalize(msg.agent); }
+          break;
+        case 'buildpack_complete':
+          if (statusEl) statusEl.textContent = '✓ Build Pack ready';
+          showBpDownloads(msg.outputs || {});
+          if (bpWs) { bpWs.close(); bpWs = null; }
+          break;
+        case 'error':
+          if (statusEl) statusEl.textContent = 'Error: ' + msg.message;
+          document.getElementById('buildpack-btn').disabled = false;
+          break;
+      }
+    }
+
+    // Wire up button after renderPage creates it
+    document.addEventListener('click', e => {
+      if (e.target && e.target.id === 'buildpack-btn') {
+        startBuildPack();
+      }
+    });
+
+    // ── Neural canvas (35 nodes) ──
+    (function() {
+      const canvas = document.getElementById('neural-bg');
+      const ctx = canvas.getContext('2d');
+      const N = 35, CONNECT = 140;
+      const ACC = [124, 106, 247];
+      let nodes = [], rafPaused = false;
+      function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+      function spawn() {
+        nodes = Array.from({ length: N }, () => ({
+          x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+          vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3,
+          r: 1.5 + Math.random()*1.5
+        }));
+      }
+      function tick() {
+        if (!rafPaused) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          nodes.forEach(n => {
+            n.vx *= 0.99; n.vy *= 0.99;
+            n.x += n.vx; n.y += n.vy;
+            if (n.x < 0) { n.x = 0; n.vx *= -1; }
+            if (n.x > canvas.width)  { n.x = canvas.width;  n.vx *= -1; }
+            if (n.y < 0) { n.y = 0; n.vy *= -1; }
+            if (n.y > canvas.height) { n.y = canvas.height; n.vy *= -1; }
+          });
+          for (let i = 0; i < nodes.length; i++) {
+            for (let j = i+1; j < nodes.length; j++) {
+              const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+              const d = Math.sqrt(dx*dx+dy*dy);
+              if (d < CONNECT) {
+                ctx.strokeStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},${0.10*(1-d/CONNECT)})`;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y); ctx.stroke();
+              }
+            }
+          }
+          nodes.forEach(n => {
+            ctx.fillStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},0.15)`;
+            ctx.beginPath(); ctx.arc(n.x,n.y,n.r,0,Math.PI*2); ctx.fill();
+          });
+        }
+        requestAnimationFrame(tick);
+      }
+      resize();
+      window.addEventListener('resize', () => { resize(); spawn(); });
+      document.addEventListener('visibilitychange', () => { rafPaused = document.hidden; });
+      spawn(); tick();
+    })();
+
+    // ── Custom cursor ──
+    const cursorDot = document.getElementById('cursor-dot');
+    let cx = window.innerWidth/2, cy = window.innerHeight/2, tx = cx, ty = cy;
+    document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+    (function animateCursor() {
+      cx += (tx-cx)*0.18; cy += (ty-cy)*0.18;
+      cursorDot.style.left = cx+'px'; cursorDot.style.top = cy+'px';
+      requestAnimationFrame(animateCursor);
+    })();
+  </script>
+</body>
+</html>

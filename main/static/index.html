@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HiveMind — App</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c6af7'/><text y='.9em' font-size='80' x='15' fill='white'>H</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <canvas id="neural-bg"></canvas>
+  <div id="cursor-dot"></div>
+
+  <div id="app">
+
+    <header id="header">
+      <div id="header-left">
+        <a href="/" class="logo-text">HIVEMIND</a>
+      </div>
+      <div id="header-right">
+        <a href="/about" class="header-link">About</a>
+        <a href="/" class="header-link">Home</a>
+        <div id="header-stats" class="hidden">
+          <span id="header-timer">⏱ 0:00</span>
+          <span class="header-stat-sep">·</span>
+          <span id="header-tokens">0 tok</span>
+        </div>
+        <div class="header-sep"></div>
+        <span id="ws-status" class="ws-dot disconnected"></span>
+        <span id="ws-label">Connecting...</span>
+      </div>
+    </header>
+
+    <div id="main">
+
+      <div id="left-panel">
+
+        <!-- 1. HACKATHON THEME -->
+        <section class="panel-section">
+          <div class="section-label">HACKATHON THEME</div>
+          <div class="textarea-wrap">
+            <textarea
+              id="idea-input"
+              rows="4"
+              maxlength="500"
+              placeholder="What's your hackathon theme?"
+            ></textarea>
+            <span id="char-counter">0 / 500</span>
+          </div>
+        </section>
+
+        <!-- 2. TEAM -->
+        <section class="panel-section">
+          <div class="section-label">TEAM</div>
+          <div id="controls-row">
+            <div id="team-pills">
+              <button class="team-pill" data-size="1">1</button>
+              <button class="team-pill active" data-size="2">2</button>
+              <button class="team-pill" data-size="3">3</button>
+              <button class="team-pill" data-size="4">4</button>
+              <button class="team-pill" data-size="5">5</button>
+            </div>
+            <button id="run-btn" disabled>
+              <i data-lucide="zap" class="btn-icon"></i>
+              <span class="run-label">Generate Ideas</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- View Results (hidden until run completes) -->
+        <div id="view-results-wrap" class="hidden">
+          <div id="view-results-status">✓ All agents finished · Ready to view</div>
+          <button id="view-results-btn">
+            <i data-lucide="arrow-right" class="btn-icon"></i>
+            View Results →
+          </button>
+        </div>
+
+        <!-- 3. AGENT TEAM -->
+        <section class="panel-section">
+          <div class="section-label">AGENT TEAM</div>
+          <div id="agent-sel-grid">
+
+            <!-- Researcher -->
+            <div class="agent-sel-card selected" data-agent="Researcher">
+              <div class="asc-header">
+                <div class="asc-icon-wrap"><i data-lucide="search"></i></div>
+                <div class="asc-body">
+                  <span class="asc-name">Researcher</span>
+                </div>
+              </div>
+              <div class="asc-model-wrap">
+                <span class="asc-gemini-badge">Gemini 2.5 Flash</span>
+              </div>
+            </div>
+
+            <!-- Ideator -->
+            <div class="agent-sel-card selected" data-agent="Ideator">
+              <div class="asc-header">
+                <div class="asc-icon-wrap"><i data-lucide="lightbulb"></i></div>
+                <div class="asc-body">
+                  <span class="asc-name">Ideator</span>
+                </div>
+              </div>
+              <div class="asc-model-wrap">
+                <span class="asc-gemini-badge">Gemini 2.5 Flash</span>
+              </div>
+            </div>
+
+            <!-- Engineer -->
+            <div class="agent-sel-card selected" data-agent="Engineer">
+              <div class="asc-header">
+                <div class="asc-icon-wrap"><i data-lucide="cpu"></i></div>
+                <div class="asc-body">
+                  <span class="asc-name">Engineer</span>
+                </div>
+              </div>
+              <div class="asc-model-wrap">
+                <span class="asc-gemini-badge">Gemini 2.5 Flash</span>
+              </div>
+            </div>
+
+            <!-- Critic -->
+            <div class="agent-sel-card selected" data-agent="Critic">
+              <div class="asc-header">
+                <div class="asc-icon-wrap"><i data-lucide="shield-alert"></i></div>
+                <div class="asc-body">
+                  <span class="asc-name">Critic</span>
+                </div>
+              </div>
+              <div class="asc-model-wrap">
+                <span class="asc-gemini-badge">Gemini 2.5 Flash</span>
+              </div>
+            </div>
+
+            <!-- Presenter -->
+            <div class="agent-sel-card selected" data-agent="Presenter">
+              <div class="asc-header">
+                <div class="asc-icon-wrap"><i data-lucide="mic"></i></div>
+                <div class="asc-body">
+                  <span class="asc-name">Presenter</span>
+                  <span class="asc-badge">Runs last</span>
+                </div>
+              </div>
+              <div class="asc-model-wrap">
+                <span class="asc-gemini-badge">Gemini 2.5 Flash</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 4. Status + progress bar -->
+        <div id="status-bar" class="hidden">
+          <span id="status-spinner"></span>
+          <span id="status-text">Initializing...</span>
+        </div>
+        <div id="progress-bar-wrap" class="hidden">
+          <div id="progress-bar"></div>
+        </div>
+
+        <!-- 5. Report section (hidden, redirect handles output) -->
+        <div id="report-section" class="hidden">
+          <div id="report-header">
+            <i data-lucide="scroll-text" class="report-header-icon"></i>
+            <span id="report-title">HIVEMIND REPORT</span>
+            <button id="report-copy-btn">
+              <i data-lucide="copy"></i>
+              Copy
+            </button>
+          </div>
+          <div id="report-body"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT PANEL — agent feed -->
+      <div id="right-panel">
+        <div id="agents-header">
+          <span class="section-label">AGENT FEED</span>
+          <span id="agents-subtitle">Waiting for idea run</span>
+          <div id="feed-flow-toggle">
+            <button class="view-toggle active" id="btn-feed">&#9776; Feed</button>
+            <button class="view-toggle" id="btn-flow">&#11042; Flow</button>
+          </div>
+        </div>
+
+        <!-- Phase indicator bar -->
+        <div id="phase-bar" class="hidden">
+          <div class="phase-step" data-step="0">
+            <div class="phase-dot"></div>
+            <span class="phase-label">Research</span>
+          </div>
+          <div class="phase-connector"></div>
+          <div class="phase-step" data-step="1">
+            <div class="phase-dot"></div>
+            <span class="phase-label">Ideate</span>
+          </div>
+          <div class="phase-connector"></div>
+          <div class="phase-step" data-step="2">
+            <div class="phase-dot"></div>
+            <span class="phase-label">Engineer</span>
+          </div>
+          <div class="phase-connector"></div>
+          <div class="phase-step" data-step="3">
+            <div class="phase-dot"></div>
+            <span class="phase-label">Critique</span>
+          </div>
+          <div class="phase-connector"></div>
+          <div class="phase-step" data-step="4">
+            <div class="phase-dot"></div>
+            <span class="phase-label">Present</span>
+          </div>
+        </div>
+
+        <div id="agent-feed"></div>
+
+        <!-- Flow diagram view (Feature 1) -->
+        <div id="flow-view" class="hidden">
+          <div class="flow-container">
+
+            <div class="flow-node" data-agent="Researcher">
+              <div class="flow-node-bar"></div>
+              <div class="flow-node-inner">
+                <div class="flow-node-left">
+                  <div class="flow-node-icon"><i data-lucide="search"></i></div>
+                  <span class="flow-node-name">Researcher</span>
+                </div>
+                <div class="flow-node-pill">
+                  <span class="flow-pill-dot"></span>
+                  <span class="flow-pill-text">IDLE</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-connector" data-idx="0">
+              <div class="flow-connector-line"></div>
+            </div>
+
+            <div class="flow-node" data-agent="Ideator">
+              <div class="flow-node-bar"></div>
+              <div class="flow-node-inner">
+                <div class="flow-node-left">
+                  <div class="flow-node-icon"><i data-lucide="lightbulb"></i></div>
+                  <span class="flow-node-name">Ideator</span>
+                </div>
+                <div class="flow-node-pill">
+                  <span class="flow-pill-dot"></span>
+                  <span class="flow-pill-text">IDLE</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-connector" data-idx="1">
+              <div class="flow-connector-line"></div>
+            </div>
+
+            <div class="flow-node" data-agent="Engineer">
+              <div class="flow-node-bar"></div>
+              <div class="flow-node-inner">
+                <div class="flow-node-left">
+                  <div class="flow-node-icon"><i data-lucide="cpu"></i></div>
+                  <span class="flow-node-name">Engineer</span>
+                </div>
+                <div class="flow-node-pill">
+                  <span class="flow-pill-dot"></span>
+                  <span class="flow-pill-text">IDLE</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-connector" data-idx="2">
+              <div class="flow-connector-line"></div>
+            </div>
+
+            <div class="flow-node" data-agent="Critic">
+              <div class="flow-node-bar"></div>
+              <div class="flow-node-inner">
+                <div class="flow-node-left">
+                  <div class="flow-node-icon"><i data-lucide="shield-alert"></i></div>
+                  <span class="flow-node-name">Critic</span>
+                </div>
+                <div class="flow-node-pill">
+                  <span class="flow-pill-dot"></span>
+                  <span class="flow-pill-text">IDLE</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-connector" data-idx="3">
+              <div class="flow-connector-line"></div>
+            </div>
+
+            <div class="flow-node" data-agent="Presenter">
+              <div class="flow-node-bar"></div>
+              <div class="flow-node-inner">
+                <div class="flow-node-left">
+                  <div class="flow-node-icon"><i data-lucide="mic"></i></div>
+                  <span class="flow-node-name">Presenter</span>
+                </div>
+                <div class="flow-node-pill">
+                  <span class="flow-pill-dot"></span>
+                  <span class="flow-pill-text">IDLE</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flow-stats-bar" id="flow-stats">&#10003; 0/5 agents &nbsp;&#183;&nbsp; 0:00 &nbsp;&#183;&nbsp; 0 chars</div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+  <script>
+    // ── Neural canvas (35 nodes, no mouse) ──
+    (function() {
+      const canvas = document.getElementById('neural-bg');
+      const ctx = canvas.getContext('2d');
+      const N = 35, CONNECT = 140;
+      const ACC = [124, 106, 247];
+      let nodes = [], rafPaused = false;
+      function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+      function spawn() {
+        nodes = Array.from({ length: N }, () => ({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          r: 1.5 + Math.random() * 1.5
+        }));
+      }
+      function tick() {
+        if (!rafPaused) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          nodes.forEach(n => {
+            n.vx *= 0.99; n.vy *= 0.99;
+            n.x += n.vx; n.y += n.vy;
+            if (n.x < 0) { n.x = 0; n.vx *= -1; }
+            if (n.x > canvas.width)  { n.x = canvas.width;  n.vx *= -1; }
+            if (n.y < 0) { n.y = 0; n.vy *= -1; }
+            if (n.y > canvas.height) { n.y = canvas.height; n.vy *= -1; }
+          });
+          for (let i = 0; i < nodes.length; i++) {
+            for (let j = i+1; j < nodes.length; j++) {
+              const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+              const d = Math.sqrt(dx*dx + dy*dy);
+              if (d < CONNECT) {
+                ctx.strokeStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},${0.10*(1-d/CONNECT)})`;
+                ctx.lineWidth = 0.5;
+                ctx.beginPath(); ctx.moveTo(nodes[i].x, nodes[i].y); ctx.lineTo(nodes[j].x, nodes[j].y); ctx.stroke();
+              }
+            }
+          }
+          nodes.forEach(n => {
+            ctx.fillStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},0.15)`;
+            ctx.beginPath(); ctx.arc(n.x, n.y, n.r, 0, Math.PI*2); ctx.fill();
+          });
+        }
+        requestAnimationFrame(tick);
+      }
+      resize();
+      window.addEventListener('resize', () => { resize(); spawn(); });
+      document.addEventListener('visibilitychange', () => { rafPaused = document.hidden; });
+      spawn(); tick();
+    })();
+
+    // ── Custom cursor ──
+    const cursorDot = document.getElementById('cursor-dot');
+    let cx = window.innerWidth/2, cy = window.innerHeight/2, tx = cx, ty = cy;
+    document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+    (function animateCursor() {
+      cx += (tx - cx) * 0.18; cy += (ty - cy) * 0.18;
+      cursorDot.style.left = cx + 'px'; cursorDot.style.top = cy + 'px';
+      requestAnimationFrame(animateCursor);
+    })();
+
+    // ── Char counter ──
+    const charCounter = document.getElementById('char-counter');
+    const inputEl = document.getElementById('idea-input');
+    if (inputEl && charCounter) {
+      function updateCounter() {
+        const len = inputEl.value.length;
+        charCounter.textContent = len + ' / 500';
+        charCounter.classList.toggle('near-limit', len >= 400 && len < 500);
+        charCounter.classList.toggle('at-limit', len >= 500);
+      }
+      inputEl.addEventListener('input', updateCounter);
+    }
+
+    // ── Rotating placeholder ──
+    const PLACEHOLDERS = [
+      'What\'s your hackathon theme?',
+      'e.g. fintech, climate, education...',
+      'Describe the problem to solve...',
+      'What industry are you targeting?',
+    ];
+    let phIdx = 0;
+    function rotatePlaceholder() {
+      if (inputEl && inputEl.value === '') {
+        inputEl.placeholder = PLACEHOLDERS[phIdx % PLACEHOLDERS.length];
+        phIdx++;
+      }
+    }
+    setInterval(rotatePlaceholder, 3000);
+
+    // ── Page transition ──
+    document.querySelectorAll('a[href]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('http')) return;
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        document.getElementById('app').style.transition = 'opacity 250ms ease-out';
+        document.getElementById('app').style.opacity = '0';
+        setTimeout(() => { window.location.href = href; }, 260);
+      });
+    });
+  </script>
+</body>
+</html>

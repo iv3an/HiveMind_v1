@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About — HiveMind</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c6af7'/><text y='.9em' font-size='80' x='15' fill='white'>H</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080810;
+      --surface:   #0f0f1a;
+      --surface-2: #161626;
+      --border:    #1e1e32;
+      --border-2:  #2a2a42;
+      --accent:    #7c6af7;
+      --text:      #e8e6f0;
+      --muted:     #7a7895;
+      --radius-btn: 10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      animation: page-fade-in 300ms ease-out;
+    }
+    @keyframes page-fade-in { from { opacity:0; } to { opacity:1; } }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      opacity: 0.03; pointer-events: none; z-index: 9997;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 40px;
+      height: 56px;
+      background: rgba(8,8,16,0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .nav-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      position: relative;
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: var(--text);
+      transition: width 200ms ease-out;
+    }
+
+    .nav-link:hover::after { width: 100%; }
+    .nav-link:hover { color: var(--text); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: var(--radius-btn);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid var(--accent);
+    }
+
+    .btn-primary:hover { background: #9585f9; border-color: #9585f9; }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+    /* ── Content ── */
+    .content {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 80px 24px 120px;
+    }
+
+    .page-overline {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .page-title {
+      font-size: clamp(28px, 4vw, 40px);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: 64px;
+      line-height: 1.15;
+    }
+
+    .about-section {
+      margin-bottom: 60px;
+    }
+
+    .about-section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .about-section h2 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .about-section p {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.85;
+      margin-bottom: 14px;
+    }
+
+    .about-section p:last-child { margin-bottom: 0; }
+
+    /* agent blocks */
+    .agent-block {
+      margin-bottom: 28px;
+      padding-left: 16px;
+      border-left: 2px solid var(--border);
+    }
+
+    .agent-block:last-child { margin-bottom: 0; }
+
+    .agent-block-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    .agent-block p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.75;
+      margin-bottom: 0;
+    }
+
+    /* divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 60px 0;
+    }
+
+    /* pills */
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* back link */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      margin-top: 60px;
+      transition: color 200ms ease-out;
+    }
+
+    .back-link:hover { color: var(--text); }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-logo {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      transition: color 200ms ease-out;
+    }
+
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Scroll fade ── */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 400ms ease-out, transform 400ms ease-out;
+    }
+
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      footer { padding: 20px 24px; }
+      .content { padding: 50px 20px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">HIVEMIND</a>
+  <div class="nav-right">
+    <a href="/about" class="nav-link">About</a>
+    <a href="/app" class="btn btn-primary btn-sm">Launch App</a>
+  </div>
+</nav>
+
+<main class="content">
+
+  <div class="page-overline">About</div>
+  <h1 class="page-title">What HiveMind is<br>and why it exists.</h1>
+
+
+  <div class="about-section fade-up">
+    <div class="about-section-label">What is HiveMind</div>
+    <h2>An AI panel that generates and stress-tests hackathon ideas so you can start building instead of brainstorming.</h2>
+    <p>HiveMind is a hackathon idea generator powered by four AI agents. You describe your theme, set your team size, and four agents — each with a different lens — propose ideas, debate them, and surface the strongest ones.</p>
+    <p>It doesn't give you a generic idea list. It gives you battle-tested concepts that have already survived a founder's market check, an engineer's feasibility check, a designer's usability check, and a critic's reality check.</p>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <div class="about-section fade-up">
+    <div class="about-section-label">Why we built it</div>
+    <h2>Because the first two hours of a hackathon are the most wasted.</h2>
+    <p>Teams spend the opening stretch arguing over ideas instead of building. Someone proposes an idea, someone else says "that already exists", and you end up picking whatever seemed least controversial — not what's actually winnable.</p>
+    <p>HiveMind front-loads that debate. In 60 seconds you get the argument that would have taken two hours, plus a clear recommendation on what to build and why.</p>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <div class="about-section fade-up">
+    <div class="about-section-label">How the agents work</div>
+    <h2>Four agents, one pipeline.</h2>
+    <p>The first three agents run in parallel, each from their own perspective. The Devil's Advocate runs last, armed with all three outputs, and forces the ideas to be sharper.</p>
+
+    <div class="agent-block">
+      <div class="agent-block-name">🚀 Startup Founder</div>
+      <p>Evaluates and generates ideas through a business lens. Asks: is there a real market? Can this make money? Are people actually in pain here? Focuses on monetization paths and market size over pure cleverness.</p>
+    </div>
+
+    <div class="agent-block">
+      <div class="agent-block-name">⚙️ Hacker Engineer</div>
+      <p>Generates technically impressive ideas that are realistically scoped to 48 hours. Specifies the exact APIs, models, and stack — not vague "use AI" suggestions. Focuses on what will wow technical judges while still being shippable.</p>
+    </div>
+
+    <div class="agent-block">
+      <div class="agent-block-name">🎨 UX/Product Thinker</div>
+      <p>Designs ideas around specific users with specific pain points. Asks: when does the user feel the value? Can a stranger understand this in 30 seconds? Focuses on the demo moment and emotional resonance — the things that win audience prizes.</p>
+    </div>
+
+    <div class="agent-block">
+      <div class="agent-block-name">😈 Devil's Advocate</div>
+      <p>Reviews all three agents' outputs and challenges every idea. Calls out what already exists by name, identifies the fatal flaw, and forces specific improvements. Then picks the top 3 ideas that are most likely to win despite the weaknesses.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+
+  <div class="about-section fade-up">
+    <div class="about-section-label">The Stack</div>
+    <h2>Minimal. No databases, no accounts, no tracking.</h2>
+    <p>Everything runs in memory for the duration of your session. No data is stored between sessions. Your ideas stay yours.</p>
+    <div class="pill-row">
+      <span class="pill">FastAPI</span>
+      <span class="pill">OpenRouter</span>
+      <span class="pill">WebSockets</span>
+      <span class="pill">Vanilla JS</span>
+    </div>
+  </div>
+
+
+  <a href="/" class="back-link fade-up">← Back to HiveMind</a>
+
+</main>
+
+<footer>
+  <a href="/" class="footer-logo">HIVEMIND</a>
+  <div class="footer-links">
+    <a href="/about">About</a>
+    <a href="/app">Launch App</a>
+  </div>
+</footer>
+
+<script>
+  const fadeEls = document.querySelectorAll('.fade-up');
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  fadeEls.forEach(el => obs.observe(el));
+</script>
+</body>
+</html>

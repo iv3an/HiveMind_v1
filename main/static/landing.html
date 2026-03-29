@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HiveMind — Hackathon Idea Generator</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%237c6af7'/><text y='.9em' font-size='80' x='15' fill='white'>H</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #080810;
+      --surface:      #0f0f1a;
+      --surface-2:    #161626;
+      --border:       #1e1e32;
+      --border-2:     #2a2a42;
+      --accent:       #7c6af7;
+      --accent-dim:   rgba(124,106,247,0.10);
+      --accent-hover: #9585f9;
+      --text:         #e8e6f0;
+      --muted:        #7a7895;
+      --text-3:       #3d3c52;
+      --success:      #4ade80;
+      --radius-card:  14px;
+      --radius-btn:   10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      animation: page-fade-in 300ms ease-out;
+    }
+    @keyframes page-fade-in { from { opacity:0; } to { opacity:1; } }
+
+    /* ── Neural canvas ── */
+    #neural-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── Grid background ── */
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124,106,247,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,106,247,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* ── Noise texture ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 9997;
+    }
+
+    /* ── Custom cursor ── */
+    #cursor-dot {
+      position: fixed;
+      width: 8px; height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 99999;
+      transform: translate(-50%, -50%);
+      will-change: left, top;
+      box-shadow: 0 0 8px rgba(124,106,247,0.6);
+      transition: opacity 300ms;
+    }
+    @media (pointer: coarse) { #cursor-dot { display: none; } }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px; height: 56px;
+      background: rgba(8,8,16,0.80);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav::after {
+      content: '';
+      position: absolute; bottom: -1px; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124,106,247,0.5), transparent);
+    }
+
+    .nav-logo {
+      font-size: 15px; font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: 0.06em;
+    }
+    .nav-right { display: flex; align-items: center; gap: 28px; }
+    .nav-link {
+      color: var(--muted); text-decoration: none;
+      font-size: 13px; position: relative;
+      transition: color 200ms ease-out;
+    }
+    .nav-link::after {
+      content: ''; position: absolute;
+      bottom: -2px; left: 0;
+      width: 0; height: 1px;
+      background: var(--text);
+      transition: width 200ms ease-out;
+    }
+    .nav-link:hover::after { width: 100%; }
+    .nav-link:hover { color: var(--text); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px;
+      border-radius: var(--radius-btn);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      transition: all 200ms ease-out;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 16px rgba(124,106,247,0.3);
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: 0 0 24px rgba(124,106,247,0.5);
+      transform: translateY(-1px);
+    }
+    .btn-ghost {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border-2);
+    }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border-2); }
+    .btn-sm { padding: 6px 14px; font-size: 12px; }
+
+    /* ── Hero ── */
+    #hero {
+      position: relative;
+      min-height: calc(100vh - 56px);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      gap: 60px;
+      padding: 80px;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .hero-left { z-index: 1; }
+
+    .overline {
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .overline::before {
+      content: '';
+      display: inline-block;
+      width: 20px; height: 1px;
+      background: var(--accent);
+    }
+
+    .hero-headline {
+      font-size: clamp(36px, 5vw, 60px);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .hero-headline .accent-word {
+      color: var(--accent);
+      text-shadow: 0 0 30px rgba(124,106,247,0.5), 0 0 60px rgba(124,106,247,0.2);
+      position: relative;
+      display: inline-block;
+    }
+    .hero-headline .underline-word {
+      position: relative;
+      display: inline-block;
+    }
+    .hero-headline .underline-word::after {
+      content: '';
+      position: absolute;
+      left: 0; bottom: -4px;
+      height: 2px;
+      background: var(--accent);
+      width: 0;
+      transition: width 800ms cubic-bezier(0.4,0,0.2,1) 600ms;
+      box-shadow: 0 0 8px rgba(124,106,247,0.6);
+    }
+    .hero-headline .underline-word.animate::after { width: 100%; }
+
+    /* Radial glow behind headline */
+    .headline-glow {
+      position: absolute;
+      top: 50%; left: 40%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(124,106,247,0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .hero-sub {
+      color: var(--muted);
+      font-size: 14px; line-height: 1.75;
+      max-width: 440px; margin-bottom: 40px;
+    }
+    .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    /* ── Terminal card ── */
+    .terminal-card {
+      background: var(--surface);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      font-size: 12px;
+      z-index: 1;
+      box-shadow: 0 0 40px rgba(124,106,247,0.08), 0 20px 60px rgba(0,0,0,0.6);
+    }
+    .terminal-bar {
+      background: rgba(8,8,16,0.8);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .terminal-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .td-red    { background: #ff5f57; }
+    .td-yellow { background: #febc2e; }
+    .td-green  { background: #28c840; }
+    .terminal-title {
+      margin-left: 8px; color: var(--muted);
+      font-size: 11px; letter-spacing: 0.04em;
+    }
+    .terminal-body {
+      padding: 20px;
+      min-height: 320px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; line-height: 1.8;
+      background: rgba(8,8,16,0.4);
+    }
+    .t-line { display: block; margin-bottom: 2px; }
+    .t-cmd   { color: var(--text); }
+    .t-agent { white-space: nowrap; font-weight: 600; }
+    .t-msg   { color: var(--muted); }
+    .t-success { color: var(--success); font-weight: 700; }
+    .t-prompt { color: var(--accent); margin-right: 4px; }
+
+    .col-researcher { color: #7c6af7; }
+    .col-ideator    { color: #a78bf8; }
+    .col-engineer   { color: #60a5fa; }
+    .col-critic     { color: #f87171; }
+    .col-presenter  { color: #4ade80; }
+
+    .cursor-blink {
+      display: inline-block;
+      width: 7px; height: 13px;
+      background: var(--accent);
+      vertical-align: text-bottom;
+      animation: blink 1s step-end infinite;
+      box-shadow: 0 0 6px rgba(124,106,247,0.6);
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── Stats ── */
+    #stats {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      overflow: hidden;
+    }
+    .stat-item {
+      padding: 44px 0; text-align: center;
+      border-right: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+    .stat-item:last-child { border-right: none; }
+
+    /* Shimmer sweep every 6s */
+    .stat-item::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 60%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(124,106,247,0.06), transparent);
+      animation: stat-shimmer 6s ease-in-out infinite;
+    }
+    .stat-item:nth-child(1)::after { animation-delay: 0s; }
+    .stat-item:nth-child(2)::after { animation-delay: 0.15s; }
+    .stat-item:nth-child(3)::after { animation-delay: 0.3s; }
+    .stat-item:nth-child(4)::after { animation-delay: 0.45s; }
+    @keyframes stat-shimmer {
+      0%   { left: -100%; }
+      30%  { left: 120%; }
+      100% { left: 120%; }
+    }
+
+    .stat-num {
+      font-size: 44px; font-weight: 700;
+      color: var(--accent); display: block;
+      line-height: 1; margin-bottom: 8px;
+      text-shadow: 0 0 20px rgba(124,106,247,0.4);
+    }
+    .stat-label { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* ── Section shared ── */
+    section { padding: 100px 80px; position: relative; z-index: 1; }
+
+    .section-label {
+      font-size: 11px; font-weight: 500;
+      letter-spacing: 0.18em; color: var(--accent);
+      text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::before {
+      content: '';
+      display: inline-block;
+      width: 16px; height: 1px;
+      background: var(--accent);
+    }
+
+    .section-headline {
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 700; color: var(--text);
+      letter-spacing: -0.02em; line-height: 1.1;
+      margin-bottom: 60px;
+    }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid transparent;
+      border-radius: var(--radius-card);
+      padding: 28px;
+      transition: border-left-color 200ms ease-out, box-shadow 200ms ease-out;
+    }
+    .feature-card:hover {
+      border-left-color: var(--accent);
+      box-shadow: 0 0 24px rgba(124,106,247,0.06);
+    }
+    .feature-icon {
+      width: 36px; height: 36px;
+      margin-bottom: 20px;
+      display: flex; align-items: center;
+    }
+    .feature-icon svg { width: 18px; height: 18px; stroke: var(--muted); stroke-width: 1.5; }
+    .feature-card:hover .feature-icon svg { stroke: var(--accent); }
+    .feature-title {
+      font-size: 14px; font-weight: 600;
+      color: var(--text); margin-bottom: 10px;
+    }
+    .feature-body { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+    /* ── Steps ── */
+    #steps { background: var(--surface); }
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px; position: relative;
+    }
+    .steps-connector {
+      position: absolute; top: 28px;
+      left: calc(16.66% + 20px);
+      right: calc(16.66% + 20px);
+      height: 1px;
+      border-top: 1px dashed var(--border-2);
+      overflow: hidden;
+    }
+    .steps-connector-fill {
+      height: 100%; width: 0;
+      background: var(--accent);
+      transition: width 1.2s ease-out;
+      box-shadow: 0 0 8px rgba(124,106,247,0.4);
+    }
+    .steps-connector.animated .steps-connector-fill { width: 100%; }
+    .step-item { position: relative; }
+    .step-num {
+      font-size: 52px; font-weight: 700;
+      color: var(--accent); line-height: 1;
+      margin-bottom: 20px; opacity: 0.7;
+      text-shadow: 0 0 20px rgba(124,106,247,0.3);
+    }
+    .step-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    .step-body  { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+    /* ── Agents ── */
+    .agents-sub {
+      font-size: 13px; color: var(--muted);
+      margin-top: -40px; margin-bottom: 48px;
+    }
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid transparent;
+      border-radius: var(--radius-card);
+      padding: 28px;
+      transition: border-left-color 200ms ease-out, box-shadow 200ms ease-out;
+    }
+    .agent-card:hover {
+      border-left: 3px solid var(--accent);
+      box-shadow: 0 0 20px rgba(124,106,247,0.06);
+    }
+    .agent-icon svg { width: 18px; height: 18px; stroke: var(--muted); stroke-width: 1.5; }
+    .agent-card:hover .agent-icon svg { stroke: var(--accent); }
+    .agent-icon { margin-bottom: 16px; }
+    .agent-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .agent-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+    /* ── CTA ── */
+    #cta {
+      text-align: center; padding: 120px 80px;
+      border-top: 1px solid var(--border);
+      position: relative; overflow: hidden; z-index: 1;
+    }
+    #cta::before {
+      content: '';
+      position: absolute; top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse, rgba(124,106,247,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    #cta h2 {
+      font-size: clamp(30px, 4vw, 52px);
+      font-weight: 700; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 16px;
+    }
+    #cta p { color: var(--muted); font-size: 14px; margin-bottom: 40px; }
+
+    /* ── Footer ── */
+    footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .footer-logo {
+      font-size: 13px; font-weight: 700;
+      color: var(--accent); text-decoration: none;
+      letter-spacing: 0.06em;
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 12px; transition: color 200ms ease-out;
+    }
+    .footer-links a:hover { color: var(--text); }
+
+    /* ── Scroll animations ── */
+    .fade-up {
+      opacity: 0; transform: translateY(20px);
+      transition: opacity 400ms ease-out, transform 400ms ease-out;
+    }
+    .fade-up.visible { opacity: 1; transform: translateY(0); }
+    .stagger-1 { transition-delay: 100ms; }
+    .stagger-2 { transition-delay: 200ms; }
+    .stagger-3 { transition-delay: 300ms; }
+    .stagger-4 { transition-delay: 400ms; }
+    .stagger-5 { transition-delay: 500ms; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      #hero { grid-template-columns: 1fr; padding: 60px 40px; gap: 48px; }
+      .terminal-card { display: none; }
+      .features-grid, .steps-grid { grid-template-columns: 1fr 1fr; }
+      .agents-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      section { padding: 70px 24px; }
+      #hero { padding: 50px 24px; }
+      #stats { grid-template-columns: repeat(2, 1fr); }
+      .stat-item:nth-child(2) { border-right: none; }
+      .features-grid, .steps-grid, .agents-grid { grid-template-columns: 1fr; }
+      .steps-connector { display: none; }
+      footer { padding: 20px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="neural-bg"></canvas>
+<div id="cursor-dot"></div>
+
+<nav>
+  <a href="/" class="nav-logo">HIVEMIND</a>
+  <div class="nav-right">
+    <a href="/about" class="nav-link">About</a>
+    <a href="/app" class="btn btn-primary btn-sm">Launch App</a>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="grid-bg"></div>
+
+  <div class="hero-left">
+    <div class="overline">Hackathon Idea Generator</div>
+    <h1 class="hero-headline">
+      <span class="headline-glow"></span>
+      Blank canvas,<br>
+      48 hours left.<br>
+      <span class="accent-word">HiveMind</span> generates<br>
+      the <span class="underline-word">ideas</span>.
+    </h1>
+    <p class="hero-sub">
+      Type your hackathon theme. Five AI agents — researcher, ideator,
+      engineer, critic, and presenter — work in sequence to generate,
+      challenge, and pitch a battle-tested shortlist.
+    </p>
+    <div class="hero-btns">
+      <a href="/app" class="btn btn-primary">Generate Ideas →</a>
+      <a href="#steps" class="btn btn-ghost">See how it works ↓</a>
+    </div>
+  </div>
+
+  <div class="terminal-card">
+    <div class="terminal-bar">
+      <span class="terminal-dot td-red"></span>
+      <span class="terminal-dot td-yellow"></span>
+      <span class="terminal-dot td-green"></span>
+      <span class="terminal-title">hivemind — pipeline</span>
+    </div>
+    <div class="terminal-body" id="terminal-body"></div>
+  </div>
+</section>
+
+<div id="stats">
+  <div class="stat-item">
+    <span class="stat-num" data-target="5" data-suffix="">0</span>
+    <span class="stat-label">AI Agents</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" data-target="60" data-suffix="s">0s</span>
+    <span class="stat-label">Average Runtime</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" data-target="inf" data-suffix="">∞</span>
+    <span class="stat-label">Themes Supported</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num" data-target="0" data-suffix="">0</span>
+    <span class="stat-label">Fluff</span>
+  </div>
+</div>
+
+<section id="features">
+  <div class="section-label">What it does</div>
+  <div class="section-headline">How it actually helps</div>
+  <div class="features-grid">
+    <div class="feature-card fade-up">
+      <div class="feature-icon"><i data-lucide="type"></i></div>
+      <div class="feature-title">Describe your theme</div>
+      <p class="feature-body">Type your hackathon focus — "AI tools", "climate tech", "student productivity". One sentence is enough to kick off the hive.</p>
+    </div>
+    <div class="feature-card fade-up stagger-1">
+      <div class="feature-icon"><i data-lucide="cpu"></i></div>
+      <div class="feature-title">5 agents run in sequence</div>
+      <p class="feature-body">Research feeds ideation, engineering shapes feasibility, a critic tears it all apart, then a presenter packages the winner.</p>
+    </div>
+    <div class="feature-card fade-up stagger-2">
+      <div class="feature-icon"><i data-lucide="trophy"></i></div>
+      <div class="feature-title">You get a winner shortlist</div>
+      <p class="feature-body">Not a dump of ideas. A curated pitch with the top picks that survived all five agents — ideas that can actually win.</p>
+    </div>
+  </div>
+</section>
+
+<section id="steps">
+  <div class="section-label">The Process</div>
+  <div class="section-headline">Three steps</div>
+  <div class="steps-grid">
+    <div class="steps-connector" id="steps-connector">
+      <div class="steps-connector-fill"></div>
+    </div>
+    <div class="step-item fade-up">
+      <div class="step-num">01</div>
+      <div class="step-title">Type your theme</div>
+      <p class="step-body">One sentence about what your hackathon is focused on. The more specific, the sharper the ideas.</p>
+    </div>
+    <div class="step-item fade-up stagger-1">
+      <div class="step-num">02</div>
+      <div class="step-title">Set team size</div>
+      <p class="step-body">One number — how many people on your team. Ideas are scoped to what's actually buildable.</p>
+    </div>
+    <div class="step-item fade-up stagger-2">
+      <div class="step-num">03</div>
+      <div class="step-title">Get your shortlist</div>
+      <p class="step-body">Watch agents run in real time. Battle-tested ideas packaged as a full pitch in under 60 seconds.</p>
+    </div>
+  </div>
+</section>
+
+<section id="agents">
+  <div class="section-label">The Team</div>
+  <div class="section-headline">Meet the agents</div>
+  <p class="agents-sub">Each agent has one role. Together they cover everything that matters at a hackathon.</p>
+  <div class="agents-grid">
+    <div class="agent-card fade-up">
+      <div class="agent-icon"><i data-lucide="search"></i></div>
+      <div class="agent-name">Researcher</div>
+      <p class="agent-desc">Scans the landscape for real market gaps, existing solutions, and opportunity spaces relevant to your theme.</p>
+    </div>
+    <div class="agent-card fade-up stagger-1">
+      <div class="agent-icon"><i data-lucide="lightbulb"></i></div>
+      <div class="agent-name">Ideator</div>
+      <p class="agent-desc">Generates concrete, buildable ideas from the research. Focuses on novelty, user value, and hackathon fit.</p>
+    </div>
+    <div class="agent-card fade-up stagger-2">
+      <div class="agent-icon"><i data-lucide="cpu"></i></div>
+      <div class="agent-name">Engineer</div>
+      <p class="agent-desc">Names the exact stack — APIs, models, architecture. Answers: can this actually be built in 48 hours?</p>
+    </div>
+    <div class="agent-card fade-up stagger-3">
+      <div class="agent-icon"><i data-lucide="shield-alert"></i></div>
+      <div class="agent-name">Critic</div>
+      <p class="agent-desc">Challenges every idea. Finds what already exists, the fatal flaw, and forces the best ones to get stronger.</p>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <h2>Stop staring at a blank page.</h2>
+  <p>Describe your theme. Get your pitch in under 60 seconds.</p>
+  <a href="/app" class="btn btn-primary">Generate Ideas →</a>
+</section>
+
+<footer>
+  <a href="/" class="footer-logo">HIVEMIND</a>
+  <div class="footer-links">
+    <a href="/about">About</a>
+    <a href="/app">Launch App</a>
+  </div>
+</footer>
+
+<script>
+  lucide.createIcons();
+
+  // ── Custom cursor ──
+  const cursorDot = document.getElementById('cursor-dot');
+  let cx = window.innerWidth/2, cy = window.innerHeight/2;
+  let tx = cx, ty = cy;
+  document.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+  (function animateCursor() {
+    cx += (tx - cx) * 0.18;
+    cy += (ty - cy) * 0.18;
+    cursorDot.style.left = cx + 'px';
+    cursorDot.style.top  = cy + 'px';
+    requestAnimationFrame(animateCursor);
+  })();
+
+  // ── Fade up on scroll ──
+  const fadeEls = document.querySelectorAll('.fade-up');
+  const fadeObs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.12 });
+  fadeEls.forEach(el => fadeObs.observe(el));
+
+  // ── Headline underline ──
+  setTimeout(() => {
+    const uw = document.querySelector('.underline-word');
+    if (uw) uw.classList.add('animate');
+  }, 400);
+
+  // ── Stat count-up ──
+  const statNums = document.querySelectorAll('.stat-num[data-target]');
+  const statObs = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const target = el.dataset.target;
+      const suffix = el.dataset.suffix || '';
+      if (target === 'inf') { el.textContent = '∞'; statObs.unobserve(el); return; }
+      if (target === '0')   { el.textContent = '0' + suffix; statObs.unobserve(el); return; }
+      const end = parseInt(target);
+      const start = performance.now();
+      const duration = 1400;
+      function tick(now) {
+        const t = Math.min((now - start) / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * end) + suffix;
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+      statObs.unobserve(el);
+    });
+  }, { threshold: 0.5 });
+  statNums.forEach(el => statObs.observe(el));
+
+  // ── Steps connector ──
+  const connector = document.getElementById('steps-connector');
+  if (connector) {
+    new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) connector.classList.add('animated');
+      });
+    }, { threshold: 0.4 }).observe(connector);
+  }
+
+  // ── Page transition on nav links ──
+  document.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (!href || href.startsWith('#') || href.startsWith('http')) return;
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      document.body.style.transition = 'opacity 250ms ease-out';
+      document.body.style.opacity = '0';
+      setTimeout(() => { window.location.href = href; }, 260);
+    });
+  });
+
+  // ── Terminal typewriter ──
+  const terminalBody = document.getElementById('terminal-body');
+  const PIPELINE = [
+    { type: 'cmd',     text: '$ hivemind run --theme "fintech tools" --team 3' },
+    { type: 'blank',   text: '' },
+    { type: 'agent',   cls: 'col-researcher', label: '[Researcher]', text: 'Scanning market gaps in fintech...' },
+    { type: 'agent',   cls: 'col-researcher', label: '[Researcher]', text: 'Found 12 underserved segments.' },
+    { type: 'agent',   cls: 'col-ideator',    label: '[Ideator]',    text: 'Generating ideas from research...' },
+    { type: 'agent',   cls: 'col-ideator',    label: '[Ideator]',    text: '5 ideas generated. Passing to engineer.' },
+    { type: 'agent',   cls: 'col-engineer',   label: '[Engineer]',   text: 'Scoping feasibility, stack selection...' },
+    { type: 'agent',   cls: 'col-engineer',   label: '[Engineer]',   text: 'Stack: Plaid API + GPT-4o + Next.js' },
+    { type: 'agent',   cls: 'col-critic',     label: '[Critic]',     text: 'Stress testing all 5 ideas...' },
+    { type: 'agent',   cls: 'col-critic',     label: '[Critic]',     text: 'Eliminated 3. Top 2 survived.' },
+    { type: 'agent',   cls: 'col-presenter',  label: '[Presenter]',  text: 'Writing winning pitch deck...' },
+    { type: 'blank',   text: '' },
+    { type: 'success', text: '✓ Done in 38s — 2 ideas ready' },
+  ];
+
+  let lineIdx = 0, charIdx = 0;
+  let currentMsgEl = null;
+  let paused = false;
+  document.addEventListener('visibilitychange', () => { paused = document.hidden; });
+
+  function appendLine(item) {
+    const div = document.createElement('div');
+    div.className = 't-line';
+    if (item.type === 'blank') { div.innerHTML = '&nbsp;'; }
+    else if (item.type === 'cmd') { div.innerHTML = `<span class="t-prompt">$</span><span class="t-cmd"> ${item.text.slice(2)}</span>`; }
+    else if (item.type === 'success') { div.innerHTML = `<span class="t-success">${item.text}</span><span class="cursor-blink"></span>`; }
+    else if (item.type === 'agent') {
+      const msgSpan = document.createElement('span');
+      msgSpan.className = 't-msg';
+      div.innerHTML = `<span class="t-agent ${item.cls}">${item.label}</span> `;
+      div.appendChild(msgSpan);
+      terminalBody.appendChild(div);
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+      return msgSpan;
+    }
+    terminalBody.appendChild(div);
+    terminalBody.scrollTop = terminalBody.scrollHeight;
+    return null;
+  }
+
+  function typeNext() {
+    if (paused) { setTimeout(typeNext, 50); return; }
+    if (lineIdx >= PIPELINE.length) {
+      setTimeout(() => {
+        terminalBody.innerHTML = '';
+        lineIdx = 0; charIdx = 0; currentMsgEl = null;
+        typeNext();
+      }, 3500);
+      return;
+    }
+    const item = PIPELINE[lineIdx];
+    if (charIdx === 0) {
+      if (item.type === 'blank' || item.type === 'cmd' || item.type === 'success') {
+        appendLine(item);
+        lineIdx++; charIdx = 0;
+        const delay = item.type === 'blank' ? 100 : (item.type === 'cmd' ? 400 : 800);
+        setTimeout(typeNext, delay);
+        return;
+      }
+      currentMsgEl = appendLine(item);
+    }
+    if (charIdx < item.text.length) {
+      currentMsgEl.textContent = item.text.slice(0, charIdx + 1);
+      charIdx++;
+      setTimeout(typeNext, 30 + Math.random() * 40);
+    } else {
+      lineIdx++; charIdx = 0; currentMsgEl = null;
+      setTimeout(typeNext, 200 + Math.random() * 200);
+    }
+  }
+  setTimeout(typeNext, 800);
+
+  // ── Neural network canvas ──
+  (function() {
+    const canvas = document.getElementById('neural-bg');
+    const ctx = canvas.getContext('2d');
+    const N_NODES = 60;
+    const CONNECT = 140;
+    const ACC = [124, 106, 247];
+    let nodes = [], mouse = { x: -9999, y: -9999 }, rafPaused = false;
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    function spawn() {
+      nodes = Array.from({ length: N_NODES }, () => ({
+        x:  Math.random() * canvas.width,
+        y:  Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.35,
+        vy: (Math.random() - 0.5) * 0.35,
+        r:  1.5 + Math.random() * 2
+      }));
+    }
+    function tick() {
+      if (!rafPaused) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        nodes.forEach(n => {
+          // Mouse attraction
+          const dx = mouse.x - n.x, dy = mouse.y - n.y;
+          const d = Math.sqrt(dx*dx + dy*dy);
+          if (d < 180) { n.vx += dx/d*0.025; n.vy += dy/d*0.025; }
+          n.vx *= 0.98; n.vy *= 0.98;
+          n.x += n.vx; n.y += n.vy;
+          if (n.x < 0) { n.x = 0; n.vx *= -1; }
+          if (n.x > canvas.width)  { n.x = canvas.width;  n.vx *= -1; }
+          if (n.y < 0) { n.y = 0; n.vy *= -1; }
+          if (n.y > canvas.height) { n.y = canvas.height; n.vy *= -1; }
+        });
+        // Lines
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i+1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < CONNECT) {
+              const a = 0.12 * (1 - d/CONNECT);
+              ctx.strokeStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},${a})`;
+              ctx.lineWidth = 0.6;
+              ctx.beginPath();
+              ctx.moveTo(nodes[i].x, nodes[i].y);
+              ctx.lineTo(nodes[j].x, nodes[j].y);
+              ctx.stroke();
+            }
+          }
+        }
+        // Dots
+        nodes.forEach(n => {
+          ctx.fillStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},0.18)`;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+          ctx.fill();
+        });
+      }
+      requestAnimationFrame(tick);
+    }
+    resize();
+    window.addEventListener('resize', () => { resize(); spawn(); });
+    document.addEventListener('visibilitychange', () => { rafPaused = document.hidden; });
+    document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+    spawn();
+    tick();
+  })();
+</script>
+</body>
+</html>
