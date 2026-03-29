@@ -832,8 +832,8 @@
   (function() {
     const canvas = document.getElementById('neural-bg');
     const ctx = canvas.getContext('2d');
-    const N_NODES = 60;
-    const CONNECT = 140;
+    const N_NODES = 95;
+    const CONNECT = 170;
     const ACC = [124, 106, 247];
     let nodes = [], mouse = { x: -9999, y: -9999 }, rafPaused = false;
 
@@ -871,9 +871,9 @@
             const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
             const d = Math.sqrt(dx*dx + dy*dy);
             if (d < CONNECT) {
-              const a = 0.12 * (1 - d/CONNECT);
+              const a = 0.16 * (1 - d/CONNECT);
               ctx.strokeStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},${a})`;
-              ctx.lineWidth = 0.6;
+              ctx.lineWidth = 0.7;
               ctx.beginPath();
               ctx.moveTo(nodes[i].x, nodes[i].y);
               ctx.lineTo(nodes[j].x, nodes[j].y);
@@ -883,7 +883,7 @@
         }
         // Dots
         nodes.forEach(n => {
-          ctx.fillStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},0.18)`;
+          ctx.fillStyle = `rgba(${ACC[0]},${ACC[1]},${ACC[2]},0.22)`;
           ctx.beginPath();
           ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
           ctx.fill();

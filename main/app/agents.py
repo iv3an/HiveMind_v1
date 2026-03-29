@@ -3,13 +3,15 @@ import re
 from google import genai
 from google.genai import types
 from google.api_core import exceptions as google_exceptions
-from app.config import GEMINI_API_KEY, MODEL, MAX_TOKENS, TEMPERATURE
+from app.config import GEMINI_API_KEY, MODEL, FAST_MODEL, SMART_MODEL, MAX_TOKENS, TEMPERATURE
 from app.ws_handler import WSManager
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 RESEARCHER = {
     "name": "Researcher",
+    "model": FAST_MODEL,
+    "max_tokens": 4000,
     "system_prompt": (
         "You are a sharp market researcher at a hackathon. "
         "Given a theme, find SPECIFIC gaps nobody has filled.\n\n"
@@ -32,6 +34,8 @@ RESEARCHER = {
 
 IDEATOR = {
     "name": "Ideator",
+    "model": FAST_MODEL,
+    "max_tokens": 4000,
     "system_prompt": (
         "IMPORTANT: Never suggest mobile apps. Never suggest "
         "carbon footprint trackers, mental health apps, or "
@@ -40,7 +44,7 @@ IDEATOR = {
         "in a browser in under 2 minutes.\n\n"
         "You are a creative product thinker. You have received "
         "market research. Based ONLY on the gaps identified, "
-        "generate exactly 3 hackathon project ideas.\n\n"
+        "generate exactly 4 hackathon project ideas.\n\n"
         "For each idea use this exact format:\n"
         "**[Idea Name]**\n"
         "Problem: one sentence\n"
@@ -49,12 +53,14 @@ IDEATOR = {
         "Stack: specific tool · specific tool · specific tool\n\n"
         "Do not generate generic ideas. Every idea must directly "
         "address one of the gaps from the research.\n"
-        "Max 280 words."
+        "Max 400 words."
     ),
 }
 
 ENGINEER = {
     "name": "Engineer",
+    "model": FAST_MODEL,
+    "max_tokens": 4000,
     "system_prompt": (
         "STRICT RULE: Always recommend this exact stack:\n"
         "- Frontend: Vanilla HTML + CSS + JavaScript only\n"
@@ -91,6 +97,8 @@ ENGINEER = {
 
 CRITIC = {
     "name": "Critic",
+    "model": SMART_MODEL,
+    "max_tokens": 4000,
     "system_prompt": (
         "You are a brutal hackathon judge. You have seen the "
         "research, the ideas, and the build plan. Your job is "
@@ -108,6 +116,8 @@ CRITIC = {
 
 PRESENTER = {
     "name": "Presenter",
+    "model": SMART_MODEL,
+    "max_tokens": 4000,
     "system_prompt": (
         "You are a pitch coach. You have all the research, "
         "the idea, the technical plan, and the critique. "
@@ -138,8 +148,6 @@ STATUS_MESSAGES = {
     "Critic":     "Critic is stress testing...",
     "Presenter":  "Presenter is writing the pitch...",
 }
-
-# ── Debate agents ──────────────────────────────────────────────────────────────
 
 DEBATE_ENGINEER_1 = {
     "name": "Engineer",
@@ -213,12 +221,11 @@ async def run_debate_agent(mgr: WSManager, agent: dict, user_input: str, context
     output = ""
     try:
         await mgr.debate_thinking(name)
-        # Brief pause so "thinking" state is visible before tokens start
         await asyncio.sleep(1.2)
         prompt = user_input if not context else f"{user_input}\n\nDebate so far:\n{context}"
         config = types.GenerateContentConfig(
             system_instruction=agent["system_prompt"],
-            max_output_tokens=1500,
+            max_output_tokens=4000,
             temperature=0.8,
         )
         loop = asyncio.get_event_loop()
@@ -259,10 +266,8 @@ async def run_debate(mgr: WSManager, user_input: str, accumulated_context: str) 
         if output:
             debate_context += f"\n{agent['name']}: {output}\n"
             all_outputs.append(f"{agent['name']}: {output}")
-        # Pause between speakers so it feels like a real conversation
         await asyncio.sleep(2.0)
 
-    # Extract chosen idea name from final Engineer turn
     chosen_idea = ""
     if all_outputs:
         last = all_outputs[-1]
@@ -280,25 +285,25 @@ async def run_agent(mgr: WSManager, agent: dict, user_input: str, context: str =
 
     try:
         print(f">>> STARTING {name}")
+        print(f">>> {name} using model: {agent.get('model', FAST_MODEL)}")
         await mgr.agent_thinking(name, "", "idea")
 
         prompt = user_input
         if context:
             prompt = f"{user_input}\n\nContext from previous agents:\n{context}"
 
-        print(f">>> PROMPT: {prompt[:100]}")
-
         config = types.GenerateContentConfig(
             system_instruction=agent["system_prompt"],
-            max_output_tokens=MAX_TOKENS,
+            max_output_tokens=agent.get("max_tokens", MAX_TOKENS),
             temperature=TEMPERATURE,
         )
 
         loop = asyncio.get_event_loop()
+        agent_model = agent.get("model", FAST_MODEL)
 
         def _start_stream():
             return client.models.generate_content_stream(
-                model=MODEL,
+                model=agent_model,
                 contents=prompt,
                 config=config,
             )
@@ -306,7 +311,6 @@ async def run_agent(mgr: WSManager, agent: dict, user_input: str, context: str =
         for attempt in range(2):
             try:
                 response = await loop.run_in_executor(None, _start_stream)
-                print(f">>> RESPONSE TYPE: {type(response)}")
                 break
             except Exception as e:
                 if "429" in str(e) and attempt == 0:
@@ -319,14 +323,10 @@ async def run_agent(mgr: WSManager, agent: dict, user_input: str, context: str =
                     raise e
 
         for chunk in response:
-            print(f">>> CHUNK: {repr(chunk)}")
             try:
                 token = chunk.text
-            except Exception as e:
-                print(f">>> CHUNK ERROR: {e}")
-                print(f">>> CHUNK RAW: {repr(chunk)}")
+            except Exception:
                 continue
-            print(f">>> TOKEN: {repr(token)}")
             if token:
                 output += token
                 await mgr.send({
@@ -338,7 +338,7 @@ async def run_agent(mgr: WSManager, agent: dict, user_input: str, context: str =
                     "phase": "idea",
                 })
 
-        print(f">>> FINAL OUTPUT LENGTH: {len(output)}")
+        print(f">>> {name} output length: {len(output)}")
         if not output:
             print(f">>> WARNING: empty output for {name}")
 
@@ -360,14 +360,23 @@ async def run_hivemind_pipeline(theme: str, team_size: int, agents_config: list,
 
     user_input = f"Hackathon theme: {theme}\nTeam size: {team_size}"
 
+    model_overrides = {a["name"]: a["model"] for a in agents_config if a.get("model")}
     print(f">>> RUNNING {len(PIPELINE_AGENTS)} AGENTS: {[a['name'] for a in PIPELINE_AGENTS]}")
+    print(f">>> MODEL OVERRIDES: {model_overrides}")
+
+    await asyncio.sleep(2)
 
     for agent in PIPELINE_AGENTS:
         await mgr.phase_update(agent["name"])
         await mgr.pipeline_status(STATUS_MESSAGES[agent["name"]])
+        await asyncio.sleep(0.4)  # let frontend create agent card before streaming starts
+
+        agent_run = {**agent}
+        if agent["name"] in model_overrides:
+            agent_run["model"] = model_overrides[agent["name"]]
 
         try:
-            output = await run_agent(mgr, agent, user_input, context=accumulated_context)
+            output = await run_agent(mgr, agent_run, user_input, context=accumulated_context)
         except Exception as e:
             print(f">>> PIPELINE ERROR at {agent['name']}: {e}")
             output = f"[Agent failed: {str(e)[:100]}]"
@@ -381,7 +390,6 @@ async def run_hivemind_pipeline(theme: str, team_size: int, agents_config: list,
 
         print(f">>> COMPLETED: {agent['name']}")
 
-        # After Ideator, run the debate before Engineer picks an idea
         if agent["name"] == "Ideator":
             await asyncio.sleep(1)
             try:
@@ -394,13 +402,22 @@ async def run_hivemind_pipeline(theme: str, team_size: int, agents_config: list,
             await asyncio.sleep(1)
 
         if agent is not PIPELINE_AGENTS[-1]:
-            await asyncio.sleep(2)
+            print(f">>> WAITING 3s before next agent...")
+            await asyncio.sleep(3)
 
-    await mgr.pipeline_complete("", all_outputs)
+    await mgr.send({
+        "type": "complete",
+        "report": "",
+        "outputs": {
+            "Researcher": all_outputs.get("Researcher", ""),
+            "Ideator":    all_outputs.get("Ideator",    ""),
+            "Engineer":   all_outputs.get("Engineer",   ""),
+            "Critic":     all_outputs.get("Critic",     ""),
+            "Presenter":  all_outputs.get("Presenter",  ""),
+        }
+    })
     print(">>> PIPELINE COMPLETE")
 
-
-# ── Build Pack agents ──────────────────────────────────────────────────────────
 
 SCAFFOLDER = {
     "name": "Scaffolder",

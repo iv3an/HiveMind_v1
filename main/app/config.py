@@ -6,6 +6,8 @@ load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 MODEL = "gemini-2.5-flash"
+FAST_MODEL = "gemini-2.5-flash"
+SMART_MODEL = "gemini-2.5-flash"
 MAX_TOKENS = 2500
 TEMPERATURE = 0.7
 UPLOAD_DIR = Path(__file__).parent.parent / "uploads"

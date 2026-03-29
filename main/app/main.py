@@ -13,17 +13,6 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-@app.get("/test-gemini")
-async def test_gemini():
-    from google import genai
-    from app.config import GEMINI_API_KEY, MODEL
-    try:
-        c = genai.Client(api_key=GEMINI_API_KEY)
-        response = c.models.generate_content(model=MODEL, contents="Say hello in one word")
-        return {"status": "ok", "response": response.text}
-    except Exception as e:
-        return {"status": "error", "error": str(e)}
-
 
 @app.get("/")
 async def landing():

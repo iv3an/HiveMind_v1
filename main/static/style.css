@@ -496,6 +496,14 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
   animation: run-shimmer 1.5s ease-in-out infinite;
 }
 .btn-icon { width: 14px; height: 14px; stroke-width: 2.5; }
+.run-eta {
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.45);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+#run-btn:disabled .run-eta,
+#run-btn.running .run-eta { color: var(--text-3); }
 
 /* ── Particle burst ── */
 .particle {
@@ -1302,15 +1310,16 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
   display: flex; flex-direction: column;
   align-items: center; gap: 4px;
   flex-shrink: 0;
+  padding: 0 4px;
 }
 .phase-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
   background: var(--text-3);
-  transition: background 300ms ease-out;
+  transition: background 300ms ease-out, width 200ms ease-out, height 200ms ease-out;
 }
 .phase-label {
-  font-size: 9px; font-weight: 700;
+  font-size: 0.72rem; font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-3);
   text-transform: uppercase;
@@ -1319,16 +1328,18 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
 .phase-connector {
   flex: 1; height: 1px;
   background: var(--border);
-  margin: 0 6px;
-  margin-bottom: 12px;
+  margin: 0 8px;
+  margin-bottom: 14px;
 }
 .phase-step.active .phase-dot {
+  width: 10px; height: 10px;
   background: var(--accent);
   animation: pulse-dot 1.2s ease-in-out infinite;
 }
-.phase-step.active .phase-label { color: var(--accent); }
+.phase-step.active .phase-label { color: #fff; font-weight: 700; }
 .phase-step.done .phase-dot  { background: var(--success); animation: none; }
 .phase-step.done .phase-label { color: var(--success); }
+.phase-step.done .phase-label::before { content: '✓ '; }
 
 /* ── Phase banner in feed ── */
 .phase-banner {
@@ -1703,26 +1714,28 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
    ══════════════════════════════════════════════════════════ */
 
 .debate-room {
-  background: rgba(8,8,16,0.9);
-  border: 1px solid rgba(124,106,247,0.20);
-  border-radius: 14px;
-  overflow: hidden;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  margin: 0 -16px;
 }
 
 .debate-room-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 11px 16px;
-  background: rgba(124,106,247,0.07);
-  border-bottom: 1px solid rgba(124,106,247,0.12);
+  padding: 12px 20px;
+  background: rgba(124,106,247,0.04);
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
 }
 
 .debate-room-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--accent);
+  color: #7c6af7;
   text-transform: uppercase;
 }
 
@@ -1733,20 +1746,26 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
 }
 
 .debate-bubbles {
-  padding: 12px 14px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 10px;
 }
 
 /* Individual chat bubble */
 .debate-bubble {
   border: 1px solid;
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 20px 24px;
   opacity: 0;
   transform: translateX(-10px);
   transition: opacity 280ms ease-out, transform 280ms ease-out;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  font-size: 0.85rem;
+  line-height: 1.8;
 }
 .debate-bubble.visible {
   opacity: 1;
@@ -1757,13 +1776,25 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 7px;
-  font-size: 10px;
+  margin-bottom: 12px;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .debate-bubble-name { flex: 1; }
+.debate-rebuttal-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ff8c7a;
+  background: rgba(255,140,122,0.10);
+  border: 1px solid rgba(255,140,122,0.25);
+  border-radius: 20px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
 .debate-bubble-dot {
   width: 5px; height: 5px;
   border-radius: 50%;
@@ -1772,23 +1803,28 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
 }
 
 .debate-bubble-text {
-  font-size: 12px;
-  color: var(--text-2);
-  line-height: 1.72;
+  font-size: 0.85rem;
+  color: #c9c7d4;
+  line-height: 1.8;
   word-break: break-word;
   min-height: 16px;
   max-height: 320px;
   overflow-y: auto;
+  max-width: 100%;
   scrollbar-width: thin;
   scrollbar-color: var(--border-2) transparent;
 }
 .debate-bubble-text p {
   margin: 0 0 8px 0;
-  color: var(--text-2);
-  font-size: 12px;
-  line-height: 1.72;
+  color: #c9c7d4;
+  font-size: 0.85rem;
+  line-height: 1.8;
 }
 .debate-bubble-text p:last-child { margin-bottom: 0; }
+.debate-bubble-text strong { color: #f0ece4; font-weight: 700; }
+.debate-bubble-text ul { padding-left: 16px; margin-bottom: 8px; }
+.debate-bubble-text ul li { color: #c9c7d4; margin-bottom: 4px; font-size: 0.85rem; }
+.debate-bubble-text li::marker { color: #7c6af7; }
 
 /* Streaming cursor inline */
 .debate-cursor {
@@ -1844,6 +1880,29 @@ html:not(.cursor-ready) #cursor-dot { opacity: 0; }
   font-weight: 700;
   color: var(--text);
   text-align: right;
+}
+
+/* ── Output toggle button (shown when debate collapses prior agent cards) ── */
+.output-toggle-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 8px 16px;
+  cursor: pointer;
+  text-align: left;
+  text-transform: uppercase;
+  transition: color var(--transition), background var(--transition);
+}
+.output-toggle-btn:hover {
+  color: var(--accent-hover);
+  background: rgba(124,106,247,0.04);
 }
 
 /* Stats bar at bottom of flow */

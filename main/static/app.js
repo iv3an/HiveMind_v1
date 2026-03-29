@@ -1,4 +1,3 @@
-// ── Flow diagram agent colors ──────────────────────────────────────────────────
 const AGENT_FLOW_COLORS = {
   Researcher: '#58a6ff',
   Ideator:    '#7c6af7',
@@ -7,7 +6,6 @@ const AGENT_FLOW_COLORS = {
   Presenter:  '#4ade80',
 };
 
-// ── Constants ──────────────────────────────────────────────────────────────────
 const AGENT_DEFS = [
   { key: "researcher", name: "Researcher", icon: "search"       },
   { key: "ideator",    name: "Ideator",    icon: "lightbulb"    },
@@ -19,7 +17,6 @@ const AGENT_DEFS = [
 const SESSION_KEY = "hivemind_session_v4";
 const RESULTS_KEY = "hivemind_results";
 
-// Phase metadata — keyed by agent name from backend phase_update messages
 const PHASE_STEP_MAP = {
   "Researcher": 0,
   "Ideator":    1,
@@ -31,7 +28,6 @@ const PHASE_STEP_MAP = {
 const PHASE_KEYS  = ["idea", "idea", "idea", "critique", "verdict"];
 const PHASE_LABELS = ["RESEARCH", "IDEATION", "ENGINEERING", "CRITIQUE", "PITCH"];
 
-// ── State ──────────────────────────────────────────────────────────────────────
 let selectedTeamSize = 2;
 let ws = null;
 let wsReconnectTimer = null;
@@ -41,10 +37,10 @@ let currentPhaseStep = -1;
 let currentPhaseCards = [];
 let currentPhaseCleanup = [];
 
-// Debate state
 let debateContainer = null;
 let currentDebateBubble = null;
 let debateActive = false;
+let debateTurnCount = 0;
 
 const DEBATE_AGENT_STYLES = {
   Engineer:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.07)',  border: 'rgba(245,158,11,0.22)',  icon: 'cpu'          },
@@ -53,18 +49,16 @@ const DEBATE_AGENT_STYLES = {
   Ideator:    { color: '#a78bf8', bg: 'rgba(167,139,248,0.07)', border: 'rgba(167,139,248,0.22)', icon: 'lightbulb'    },
 };
 
-// Flow diagram state
+let pingInterval = null;
 let flowDoneCount = 0;
 let flowTotalChars = 0;
 let flowStartTime = null;
 let flowTimer = null;
 
-// Header stats state
 let headerRunStart = null;
 let headerTokenCount = 0;
 let headerStatsTimer = null;
 
-// ── DOM refs ───────────────────────────────────────────────────────────────────
 const ideaInput       = document.getElementById("idea-input");
 const runBtn          = document.getElementById("run-btn");
 const statusBar       = document.getElementById("status-bar");
@@ -83,12 +77,10 @@ const headerStats     = document.getElementById("header-stats");
 const headerTimer     = document.getElementById("header-timer");
 const headerTokensEl  = document.getElementById("header-tokens");
 
-// ── Flow view DOM refs ─────────────────────────────────────────────────────────
 const flowView   = document.getElementById('flow-view');
 const btnFeed    = document.getElementById('btn-feed');
 const btnFlow    = document.getElementById('btn-flow');
 
-// Toggle between Feed and Flow views
 if (btnFeed) btnFeed.addEventListener('click', () => {
   btnFeed.classList.add('active');
   btnFlow.classList.remove('active');
@@ -103,7 +95,6 @@ if (btnFlow) btnFlow.addEventListener('click', () => {
   icons();
 });
 
-// ── Progress bar helpers ───────────────────────────────────────────────────────
 const TOTAL_PHASES = 5;
 function showProgress() {
   if (progressBarWrap) {
@@ -121,38 +112,59 @@ function hideProgress() {
   if (progressBarWrap) progressBarWrap.classList.add("hidden");
 }
 
-// ── Debate room ────────────────────────────────────────────────────────────────
 function initDebateRoom() {
+  // Collapse all existing agent card outputs above the debate room
+  Object.entries(agentCardMap).forEach(([agentName, entry]) => {
+    if (!entry || !entry.card || !entry.outputEl) return;
+    const outputEl = entry.outputEl;
+    if (outputEl.classList.contains('expanded')) {
+      outputEl.classList.remove('expanded');
+      if (!entry.card.querySelector('.output-toggle-btn')) {
+        const btn = document.createElement('button');
+        btn.className = 'output-toggle-btn';
+        btn.textContent = `▼ Show ${agentName} output`;
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const nowExpanded = outputEl.classList.toggle('expanded');
+          btn.textContent = nowExpanded ? `▲ Hide ${agentName} output` : `▼ Show ${agentName} output`;
+        });
+        entry.card.appendChild(btn);
+      }
+    }
+  });
+
   const room = document.createElement('div');
   room.className = 'debate-room phase-enter';
   room.innerHTML = `
     <div class="debate-room-header">
-      <span class="debate-room-title">⚡ Debate Room</span>
+      <span class="debate-room-title">⚡ DEBATE ROOM</span>
       <span class="debate-room-subtitle">agents choosing the best idea</span>
     </div>
     <div class="debate-bubbles"></div>
   `;
   agentFeed.appendChild(room);
-  // Register in phase cleanup so it gets swept when Engineer card starts
   currentPhaseCards.push(room);
   currentPhaseCleanup.push(() => {
     debateContainer = null;
     currentDebateBubble = null;
     debateActive = false;
+    debateTurnCount = 0;
   });
   debateContainer = room.querySelector('.debate-bubbles');
   debateActive = true;
+  debateTurnCount = 0;
 }
 
 function createDebateBubble(agentName) {
   const cfg = DEBATE_AGENT_STYLES[agentName] || { color: '#7c6af7', bg: 'rgba(124,106,247,0.07)', border: 'rgba(124,106,247,0.22)', icon: 'message-circle' };
   const bubble = document.createElement('div');
   bubble.className = 'debate-bubble thinking';
-  bubble.style.cssText = `background:${cfg.bg};border-color:${cfg.border}`;
+  bubble.style.cssText = `background:#0d0d1a;border:1px solid #2a2a2a;border-left:3px solid ${cfg.color};padding:16px 20px`;
   bubble.innerHTML = `
-    <div class="debate-bubble-header" style="color:${cfg.color}">
-      <i data-lucide="${cfg.icon}" style="width:11px;height:11px;stroke-width:2.5;flex-shrink:0"></i>
-      <span class="debate-bubble-name">${agentName}</span>
+    <div class="debate-bubble-header">
+      <i data-lucide="${cfg.icon}" style="width:11px;height:11px;stroke-width:2.5;flex-shrink:0;color:${cfg.color}"></i>
+      <span class="debate-bubble-name" style="color:${cfg.color};font-weight:700;text-transform:uppercase;font-size:0.7rem;letter-spacing:0.1em">${agentName}</span>
+      ${debateTurnCount > 0 ? '<span class="debate-rebuttal-badge">REBUTTAL</span>' : ''}
       <span class="debate-bubble-dot" style="background:${cfg.color}"></span>
     </div>
     <div class="debate-bubble-text"></div>
@@ -163,6 +175,7 @@ function createDebateBubble(agentName) {
   icons();
   bubble._cfg = cfg;
   bubble._text = '';
+  debateTurnCount++;
   return bubble;
 }
 
@@ -175,13 +188,11 @@ function handleDebateMessage(msg) {
     currentDebateBubble.className = 'debate-bubble streaming visible';
     const textEl = currentDebateBubble.querySelector('.debate-bubble-text');
     if (textEl) {
-      // Render double newlines as paragraph breaks, single as space
-      textEl.innerHTML = currentDebateBubble._text
-        .split(/\n{2,}/)
-        .map(p => p.trim())
-        .filter(Boolean)
-        .map(p => `<p>${p.replace(/\n/g, ' ')}</p>`)
-        .join('') + '<span class="debate-cursor">█</span>';
+      textEl.textContent = currentDebateBubble._text;
+      const cursor = document.createElement('span');
+      cursor.className = 'debate-cursor';
+      cursor.textContent = '█';
+      textEl.appendChild(cursor);
     }
     if (debateContainer) debateContainer.scrollTop = debateContainer.scrollHeight;
   }
@@ -189,15 +200,12 @@ function handleDebateMessage(msg) {
     currentDebateBubble.className = 'debate-bubble done visible';
     const dot = currentDebateBubble.querySelector('.debate-bubble-dot');
     if (dot) dot.style.background = 'var(--success)';
-    // Final render — remove cursor, clean up paragraphs
     const textEl = currentDebateBubble.querySelector('.debate-bubble-text');
     if (textEl) {
-      textEl.innerHTML = currentDebateBubble._text
-        .split(/\n{2,}/)
-        .map(p => p.trim())
-        .filter(Boolean)
-        .map(p => `<p>${p.replace(/\n/g, ' ')}</p>`)
-        .join('');
+      const html = (typeof marked !== 'undefined')
+        ? marked.parse(currentDebateBubble._text).replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        : currentDebateBubble._text;
+      textEl.innerHTML = html;
     }
     currentDebateBubble = null;
   }
@@ -217,7 +225,6 @@ function finalizeDebate(chosenIdea) {
   debateActive = false;
 }
 
-// ── Header stats ───────────────────────────────────────────────────────────────
 function startHeaderStats() {
   headerRunStart = Date.now();
   headerTokenCount = 0;
@@ -241,14 +248,12 @@ function updateHeaderStats() {
 function stopHeaderStats() {
   if (headerStatsTimer) { clearInterval(headerStatsTimer); headerStatsTimer = null; }
   updateHeaderStats();
-  // Fade out after 3s
   setTimeout(() => {
     if (headerStats) headerStats.classList.add("hidden");
     headerRunStart = null;
   }, 3000);
 }
 
-// ── Particle burst ─────────────────────────────────────────────────────────────
 function burstParticles(originEl) {
   if (!originEl) return;
   const rect = originEl.getBoundingClientRect();
@@ -271,17 +276,14 @@ function burstParticles(originEl) {
   }
 }
 
-// ── marked.js config ───────────────────────────────────────────────────────────
 if (typeof marked !== "undefined") {
   marked.setOptions({ breaks: true, gfm: true });
 }
 
-// ── Icons ──────────────────────────────────────────────────────────────────────
 function icons() {
   if (typeof lucide !== "undefined") lucide.createIcons();
 }
 
-// ── Flow diagram helpers ───────────────────────────────────────────────────────
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1,3), 16);
   const g = parseInt(hex.slice(3,5), 16);
@@ -297,7 +299,7 @@ function updateFlowStats() {
     const secs = Math.floor((Date.now() - flowStartTime) / 1000);
     const m = Math.floor(secs / 60);
     const s = secs % 60;
-    elapsed = `${m}:${s.toString().padStart(2, '0')}`;
+    elapsed = `${m}:${s.toString().padStart(2, '00')}`;
   }
   el.textContent = `✓ ${flowDoneCount}/5 agents  ·  ${elapsed}  ·  ${flowTotalChars.toLocaleString()} chars`;
 }
@@ -344,7 +346,6 @@ function updateFlowNode(agentName, status, token) {
     pill.style.backgroundColor  = hexToRgba(color, 0.1);
     pillText.textContent        = 'THINKING';
     pillDot.style.background    = color;
-    // Animate connector above (previous agent's color)
     if (agentIdx > 0) {
       const conn = connectors[agentIdx - 1];
       if (conn) {
@@ -354,7 +355,6 @@ function updateFlowNode(agentName, status, token) {
         conn.classList.add('flowing');
       }
     }
-    // Start timer
     if (!flowStartTime) {
       flowStartTime = Date.now();
       flowTimer = setInterval(updateFlowStats, 1000);
@@ -377,12 +377,10 @@ function updateFlowNode(agentName, status, token) {
     pill.style.backgroundColor  = 'rgba(74,222,128,0.08)';
     pillText.textContent        = 'DONE';
     pillDot.style.background    = '#4ade80';
-    // Stop connector above
     if (agentIdx > 0) {
       const conn = connectors[agentIdx - 1];
       if (conn) conn.classList.remove('flowing');
     }
-    // Fire context bubble on connector below
     if (agentIdx < AGENT_DEFS.length - 1) {
       fireContextBubble(agentIdx, color);
     }
@@ -424,7 +422,6 @@ function resetFlowNodes() {
   updateFlowStats();
 }
 
-// ── Escape HTML ────────────────────────────────────────────────────────────────
 function esc(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -433,7 +430,6 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
-// ── Fallback markdown renderer ─────────────────────────────────────────────────
 function renderMarkdown(md) {
   if (typeof marked !== "undefined") {
     return marked.parse(md).replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -460,7 +456,6 @@ function renderMarkdown(md) {
   return html;
 }
 
-// ── Team pill logic ────────────────────────────────────────────────────────────
 document.querySelectorAll('.team-pill').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.team-pill').forEach(b => b.classList.remove('active'));
@@ -470,23 +465,23 @@ document.querySelectorAll('.team-pill').forEach(btn => {
   });
 });
 
-// ── getSelectedAgentsConfig ────────────────────────────────────────────────────
 function getSelectedAgentsConfig() {
-  return AGENT_DEFS.map(d => ({ name: d.name, model: "gemini-2.5-flash" }));
+  return AGENT_DEFS.map(d => {
+    const card = document.querySelector(`.agent-sel-card[data-agent="${d.name}"]`);
+    const sel  = card ? card.querySelector('.model-sel') : null;
+    return { name: d.name, model: sel ? sel.value : 'gemini-2.5-flash' };
+  });
 }
 
-// ── updateRunButton ────────────────────────────────────────────────────────────
 function updateRunButton() {
   runBtn.disabled = ideaInput.value.trim().length === 0 || isRunning;
 }
 
-// ── Input listener ─────────────────────────────────────────────────────────────
 ideaInput.addEventListener("input", () => {
   updateRunButton();
   saveSession();
 });
 
-// ── startHivemind ──────────────────────────────────────────────────────────────
 runBtn.addEventListener("click", startHivemind);
 
 function startHivemind() {
@@ -497,7 +492,6 @@ function startHivemind() {
     return;
   }
 
-  // Particle burst on click
   burstParticles(runBtn);
 
   const agents = getSelectedAgentsConfig();
@@ -515,7 +509,6 @@ function startHivemind() {
   initAgentCards();
   agentSubtitle.textContent = "Agents are live";
 
-  // Show phase bar and reset it
   phaseBar.classList.remove("hidden");
   currentPhaseStep = -1;
   phaseBar.querySelectorAll('.phase-step').forEach(s => {
@@ -525,15 +518,12 @@ function startHivemind() {
   ws.send(JSON.stringify({ type: "run", theme, team_size: selectedTeamSize, agents }));
 }
 
-// ── setStatus ──────────────────────────────────────────────────────────────────
 function setStatus(msg) {
   statusText.textContent = msg;
 }
 
-// ── Agent card map ─────────────────────────────────────────────────────────────
 const agentCardMap = {};
 
-// ── initAgentCards ─────────────────────────────────────────────────────────────
 function initAgentCards() {
   agentFeed.innerHTML = "";
   Object.keys(agentCardMap).forEach(k => delete agentCardMap[k]);
@@ -545,7 +535,6 @@ function initAgentCards() {
   resetFlowNodes();
 }
 
-// ── createAgentCardElement ─────────────────────────────────────────────────────
 function createAgentCardElement(def) {
   const card = document.createElement("div");
   card.className = "agent-card idle";
@@ -572,7 +561,6 @@ function createAgentCardElement(def) {
   return card;
 }
 
-// ── createPhaseCards ───────────────────────────────────────────────────────────
 function createPhaseCards(step) {
   const def = AGENT_DEFS[step];
   if (!def) return;
@@ -595,9 +583,7 @@ function createPhaseCards(step) {
   icons();
 }
 
-// ── updateAgentCard ────────────────────────────────────────────────────────────
 function updateAgentCard(agentName, status, token) {
-  // Update flow diagram node in parallel
   updateFlowNode(agentName, status, token);
 
   const entry = agentCardMap[agentName];
@@ -656,7 +642,6 @@ function updateAgentCard(agentName, status, token) {
   }
 }
 
-// ── Phase update handler ───────────────────────────────────────────────────────
 function onPhaseUpdate(phaseName) {
   const step = PHASE_STEP_MAP[phaseName];
   if (step === undefined) return;
@@ -666,7 +651,6 @@ function onPhaseUpdate(phaseName) {
   currentPhaseCards = [];
   currentPhaseCleanup = [];
 
-  // Animate out old cards
   oldCards.forEach(el => el.classList.add("phase-exit"));
 
   const exitDuration = oldCards.length > 0 ? 300 : 0;
@@ -675,7 +659,6 @@ function onPhaseUpdate(phaseName) {
     oldCards.forEach(el => el.remove());
     cleanupFns.forEach(fn => fn());
 
-    // Update phase bar breadcrumb
     phaseBar.querySelectorAll('.phase-step').forEach(el => {
       const s = parseInt(el.dataset.step, 10);
       el.classList.remove('active', 'done');
@@ -683,10 +666,8 @@ function onPhaseUpdate(phaseName) {
       else if (s === step) el.classList.add('active');
     });
     currentPhaseStep = step;
-    // Advance progress bar (each phase = 20%)
     setProgress(step + 1);
 
-    // Show transition banner
     const phaseKey   = PHASE_KEYS[step]   || "idea";
     const phaseLabel = PHASE_LABELS[step] || phaseName;
     const banner = document.createElement("div");
@@ -700,7 +681,6 @@ function onPhaseUpdate(phaseName) {
   }, exitDuration);
 }
 
-// ── onPipelineComplete ─────────────────────────────────────────────────────────
 function onPipelineComplete(msg) {
   isRunning = false;
   lastReport = msg.report || "";
@@ -708,12 +688,10 @@ function onPipelineComplete(msg) {
   runBtn.querySelector(".run-label").textContent = "Generate Ideas";
   statusBar.classList.add("hidden");
   updateRunButton();
-  // Stop flow stats timer
   if (flowTimer) { clearInterval(flowTimer); flowTimer = null; }
   updateFlowStats();
   stopHeaderStats();
 
-  // Mark all phase steps done
   phaseBar.querySelectorAll('.phase-step').forEach(el => {
     el.classList.remove('active');
     el.classList.add('done');
@@ -729,17 +707,14 @@ function onPipelineComplete(msg) {
   localStorage.setItem(RESULTS_KEY, JSON.stringify(resultsData));
   saveSession();
 
-  // Flash run button green briefly
   runBtn.classList.add('flash-success');
   setTimeout(() => runBtn.classList.remove('flash-success'), 600);
 
-  // Show "View Results" button
   const wrap = document.getElementById('view-results-wrap');
   wrap.classList.remove('hidden');
   wrap.classList.add('view-results-visible');
 }
 
-// ── View Results button ────────────────────────────────────────────────────────
 document.getElementById('view-results-btn').addEventListener('click', () => {
   const appEl = document.getElementById('app');
   appEl.style.transition = 'opacity 400ms ease-out';
@@ -747,7 +722,6 @@ document.getElementById('view-results-btn').addEventListener('click', () => {
   setTimeout(() => { window.location.href = '/results'; }, 420);
 });
 
-// ── onPipelineError ────────────────────────────────────────────────────────────
 function onPipelineError(message) {
   isRunning = false;
   runBtn.classList.remove("running");
@@ -757,7 +731,6 @@ function onPipelineError(message) {
   updateRunButton();
 }
 
-// ── Report copy button ─────────────────────────────────────────────────────────
 if (reportCopyBtn) {
   reportCopyBtn.addEventListener("click", () => {
     navigator.clipboard.writeText(reportBody.innerText).then(() => {
@@ -771,7 +744,6 @@ if (reportCopyBtn) {
   });
 }
 
-// ── WebSocket ──────────────────────────────────────────────────────────────────
 function connectWS() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${location.host}/ws`);
@@ -793,12 +765,13 @@ function connectWS() {
     handleWSMessage(msg);
   };
 
-  // Heartbeat
-  setInterval(() => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "ping" }));
-    }
-  }, 25000);
+  if (!pingInterval) {
+    pingInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 25000);
+  }
 }
 
 function setWsStatus(state, label) {
@@ -820,7 +793,6 @@ function handleWSMessage(msg) {
   }
 }
 
-// ── Session persistence ────────────────────────────────────────────────────────
 function saveSession() {
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify({
@@ -849,7 +821,6 @@ function loadSession() {
   } catch {}
 }
 
-// ── Init ───────────────────────────────────────────────────────────────────────
 connectWS();
 loadSession();
 initAgentCards();
