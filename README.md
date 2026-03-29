@@ -21,11 +21,13 @@ you have a battle-tested idea and a winning pitch.
 
 ## Features
 
-- Real-time streaming — watch agents think live
+- Real-time streaming — watch agents think token by token
 - Sequential pipeline — each agent builds on the last
+- Debate Room — agents argue over ideas before the Engineer decides
 - Results page — full structured report + pitch
+- Build Pack — generates starter code, README, and slide script
 - Clean dark UI built for demos
-- Powered by Google Gemini 
+- Powered by Google Gemini 2.5 Flash
 
 ---
 
@@ -43,7 +45,7 @@ you have a battle-tested idea and a winning pitch.
 ## Getting Started
 ```bash
 # Clone the repo
-git clone https://github.com/iv3an/hivemind.git
+git clone git@github.com:iv3an/HiveMind_v1.git
 cd hivemind/main
 
 # Install dependencies
